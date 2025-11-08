@@ -1,0 +1,40 @@
+.nesting-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.size-info {
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.material-preview {
+  border: 1px dashed #cbd5f5;
+  border-radius: 12px;
+  background: #f9fafb;
+  padding: 16px;
+  min-height: 400px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.run-message {
+  color: #2563eb;
+  font-size: 14px;
+}

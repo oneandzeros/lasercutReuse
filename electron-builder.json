@@ -1,0 +1,16 @@
+{
+  "appId": "com.lasermaterial.app",
+  "productName": "LaserMaterial",
+  "files": [
+    "dist/**/*",
+    "dist-react/**/*",
+    "package.json"
+  ],
+  "mac": {
+    "category": "public.app-category.graphics-design"
+  },
+  "directories": {
+    "buildResources": "build",
+    "output": "release"
+  }
+}

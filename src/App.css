@@ -1,0 +1,53 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-header {
+  background: #1f2937;
+  color: #fff;
+  padding: 20px 40px;
+}
+
+.app-header h1 {
+  font-size: 24px;
+  margin-bottom: 16px;
+}
+
+.step-indicator {
+  display: flex;
+  gap: 20px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.step span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  font-weight: 600;
+}
+
+.step.active {
+  color: #4ade80;
+}
+
+.step.completed {
+  color: #60a5fa;
+}
+
+.app-main {
+  flex: 1;
+  padding: 24px 40px;
+  overflow-y: auto;
+}
