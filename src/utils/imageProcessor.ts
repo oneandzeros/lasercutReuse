@@ -2,6 +2,7 @@
  * 图像处理工具集：自动角点识别 + Potrace 描摹
  */
 
+import { applyPerspectiveTransform } from './perspective';
 import PotraceModule from 'potrace';
 
 export interface Point {
@@ -21,6 +22,7 @@ export interface AutoCorrectResult {
 const BOARD_WIDTH_MM = 645;
 const BOARD_HEIGHT_MM = 525;
 const MAX_SCAN_PIXELS = 10_000;
+const PIXELS_PER_MM = 4;
 
 const Potrace: any = PotraceModule;
 
@@ -40,16 +42,38 @@ export async function autoCorrectPerspective(imageData: string): Promise<AutoCor
     throw new Error('未检测到足够的红色标记，请确认胶带清晰可见');
   }
 
-  const corners = inferBoardCorners(redPixels, image.width, image.height);
+  const inferred = inferCornersFromRedPixels(redPixels, image.width, image.height);
+  const normalizedCorners = normalizeCorners(inferred, image.width, image.height);
+  const corrected = applyCorrectionWithImage(img, normalizedCorners);
 
   return {
     originalDataUrl: imageData,
-    correctedDataUrl: imageData,
-    widthMm: BOARD_WIDTH_MM,
-    heightMm: BOARD_HEIGHT_MM,
-    corners,
+    correctedDataUrl: corrected.dataUrl,
+    widthMm: corrected.widthMm,
+    heightMm: corrected.heightMm,
+    corners: corrected.corners,
     redPixels,
   };
+}
+
+export async function generateCorrectedImage(
+  imageData: string,
+  corners: Point[],
+  options?: {
+    widthMm?: number;
+    heightMm?: number;
+    pixelsPerMm?: number;
+  }
+): Promise<{
+  dataUrl: string;
+  widthMm: number;
+  heightMm: number;
+  widthPx: number;
+  heightPx: number;
+  corners: Point[];
+}> {
+  const img = await loadImage(imageData);
+  return applyCorrectionWithImage(img, corners, options);
 }
 
 export async function processImageToSvg(
@@ -112,6 +136,59 @@ export async function processImageToSvg(
       }
     );
   });
+}
+
+export function normalizeCorners(corners: Point[], width: number, height: number): Point[] {
+  if (corners.length < 3) {
+    throw new Error('至少需要三个角点');
+  }
+
+  let working = corners.map((p) => clampPoint(p, width, height));
+
+  if (working.length === 3) {
+    const sortedByY = [...working].sort((a, b) => a.y - b.y);
+    const topTwo = sortedByY.slice(0, 2).sort((a, b) => a.x - b.x);
+    const bottom = sortedByY[2];
+    const topLeft = topTwo[0];
+    const topRight = topTwo[1];
+    const bottomRight = bottom;
+    const bottomLeft = clampPoint(
+      {
+        x: topLeft.x + bottomRight.x - topRight.x,
+        y: topLeft.y + bottomRight.y - topRight.y,
+      },
+      width,
+      height
+    );
+    working = [topLeft, topRight, bottomRight, bottomLeft];
+  } else if (working.length > 4) {
+    working = selectFourExtremePoints(working);
+  } else if (working.length === 4) {
+    // nothing
+  }
+
+  if (working.length !== 4) {
+    throw new Error('无法归一化角点');
+  }
+
+  const sortedByY = [...working].sort((a, b) => a.y - b.y);
+  const topTwo = sortedByY.slice(0, 2).sort((a, b) => a.x - b.x);
+  const bottomTwo = sortedByY.slice(-2).sort((a, b) => a.x - b.x);
+
+  if (topTwo.length < 2 || bottomTwo.length < 2) {
+    throw new Error('角点排序失败');
+  }
+
+  const [topLeft, topRight] = topTwo;
+  let [bottomLeft, bottomRight] = bottomTwo;
+
+  // 确保 bottomRight 位于 bottomLeft 右侧
+  if (bottomRight.x < bottomLeft.x) {
+    [bottomLeft, bottomRight] = [bottomRight, bottomLeft];
+  }
+
+  const ordered: Point[] = [topLeft, topRight, bottomRight, bottomLeft];
+  return ordered.map((p) => clampPoint(p, width, height));
 }
 
 function calculateOtsuThreshold(data: Uint8ClampedArray): number {
@@ -180,7 +257,7 @@ function isRed(r: number, g: number, b: number): boolean {
   return r > 150 && r - maxOther > 40 && g < 200 && b < 200;
 }
 
-function inferBoardCorners(points: Point[], width: number, height: number): Point[] {
+function inferCornersFromRedPixels(points: Point[], width: number, height: number): Point[] {
   const sortedByY = [...points].sort((a, b) => a.y - b.y);
   const topCandidates = sortedByY.slice(0, Math.max(2, Math.round(sortedByY.length * 0.1)));
   const bottomCandidate = sortedByY[sortedByY.length - 1];
@@ -201,6 +278,52 @@ function clampPoint(point: Point, width: number, height: number): Point {
   return {
     x: Math.min(Math.max(point.x, 0), width - 1),
     y: Math.min(Math.max(point.y, 0), height - 1),
+  };
+}
+
+function selectFourExtremePoints(points: Point[]): Point[] {
+  if (points.length <= 4) return points.slice(0, 4);
+  const tl = points.reduce((acc, p) => (p.x + p.y < acc.x + acc.y ? p : acc), points[0]);
+  const tr = points.reduce((acc, p) => (p.x - p.y > acc.x - acc.y ? p : acc), points[0]);
+  const br = points.reduce((acc, p) => (p.x + p.y > acc.x + acc.y ? p : acc), points[0]);
+  const bl = points.reduce((acc, p) => (p.y - p.x > acc.y - acc.x ? p : acc), points[0]);
+  return [tl, tr, br, bl];
+}
+
+function applyCorrectionWithImage(
+  img: HTMLImageElement,
+  corners: Point[],
+  options?: {
+    widthMm?: number;
+    heightMm?: number;
+    pixelsPerMm?: number;
+  }
+): {
+  dataUrl: string;
+  widthMm: number;
+  heightMm: number;
+  widthPx: number;
+  heightPx: number;
+  corners: Point[];
+} {
+  const normalized = normalizeCorners(corners, img.width, img.height);
+  const widthMm = options?.widthMm ?? BOARD_WIDTH_MM;
+  const heightMm = options?.heightMm ?? BOARD_HEIGHT_MM;
+  const pixelsPerMm = options?.pixelsPerMm ?? PIXELS_PER_MM;
+  const targetWidth = Math.max(1, Math.round(widthMm * pixelsPerMm));
+  const targetHeight = Math.max(1, Math.round(heightMm * pixelsPerMm));
+  const transformed = applyPerspectiveTransform(img, normalized, {
+    targetWidth,
+    targetHeight,
+  });
+
+  return {
+    dataUrl: transformed.dataUrl,
+    widthMm,
+    heightMm,
+    widthPx: targetWidth,
+    heightPx: targetHeight,
+    corners: normalized,
   };
 }
 
