@@ -6,8 +6,12 @@ import {
   generateCorrectedImage,
   normalizeCorners,
   Point,
+  SvgProcessResult,
+  suggestRectanglesFromMask,
 } from '../utils/imageProcessor';
 import './ImageProcessor.css';
+
+type ShapeMessageTone = 'info' | 'success' | 'warning' | 'error';
 
 interface ImageProcessorProps {
   imageData: string;
@@ -15,12 +19,12 @@ interface ImageProcessorProps {
   onBack: () => void;
 }
 
-const DEFAULT_WIDTH_MM = 645;
-const DEFAULT_HEIGHT_MM = 525;
+const DEFAULT_WIDTH_MM = 525;
+const DEFAULT_HEIGHT_MM = 645;
 
 const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerated, onBack }) => {
   const [processing, setProcessing] = useState(false);
-  const [svgResult, setSvgResult] = useState<string | null>(null);
+  const [svgResult, setSvgResult] = useState<SvgProcessResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [threshold, setThreshold] = useState<number | null>(null);
   const [turdSize, setTurdSize] = useState(2);
@@ -35,6 +39,15 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   const [imageSize, setImageSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
   const [isImageReady, setIsImageReady] = useState(false);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const [shapePadding, setShapePadding] = useState(12);
+  const [shapeCornerRadius, setShapeCornerRadius] = useState(24);
+  const [shapeStrokeWidth, setShapeStrokeWidth] = useState(1);
+  const [shapeStrokeColor, setShapeStrokeColor] = useState('#ff4d4f');
+  const [shapeGap, setShapeGap] = useState(5);
+  const [shapeStep, setShapeStep] = useState(0.2);
+  const [shapeMessage, setShapeMessage] = useState<string | null>(null);
+  const [shapeMessageTone, setShapeMessageTone] = useState<ShapeMessageTone>('info');
+  const [autoFilling, setAutoFilling] = useState(false);
 
   const imageRef = useRef<HTMLImageElement | null>(null);
   const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -123,6 +136,15 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
     setCorrectedImage(null);
     setCornersDirty(false);
     setIsImageReady(false);
+    setShapePadding(12);
+    setShapeCornerRadius(24);
+    setShapeStrokeWidth(1);
+    setShapeStrokeColor('#ff4d4f');
+    setShapeGap(5);
+    setShapeStep(0.2);
+    setShapeMessage(null);
+    setShapeMessageTone('info');
+    setAutoFilling(false);
   }, [imageData]);
 
   useEffect(() => {
@@ -235,6 +257,255 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
     return () => window.removeEventListener('resize', draw);
   }, [autoCorrect, manualCorners]);
 
+  const parseSvgViewBox = (root: SVGSVGElement): { x: number; y: number; width: number; height: number } | null => {
+    const raw = root.getAttribute('viewBox');
+    if (raw) {
+      const parts = raw
+        .replace(/,/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .map(Number);
+      if (parts.length === 4 && parts.every((value) => Number.isFinite(value))) {
+        const [x, y, width, height] = parts;
+        if (width > 0 && height > 0) {
+          return { x, y, width, height };
+        }
+      }
+    }
+
+    const parseDimension = (value: string | null): number => {
+      if (!value) return NaN;
+      const parsed = parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : NaN;
+    };
+
+    const width = parseDimension(root.getAttribute('width'));
+    const height = parseDimension(root.getAttribute('height'));
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return null;
+    }
+    root.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    return { x: 0, y: 0, width, height };
+  };
+
+  const handleAddShape = (shape: 'roundedRect' | 'circle') => {
+    if (!svgResult) return;
+    if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+      setError('当前环境不支持 SVG 编辑');
+      return;
+    }
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgResult.svg, 'image/svg+xml');
+      const root = doc.documentElement as SVGSVGElement | null;
+      if (!root || root.tagName.toLowerCase() !== 'svg') {
+        throw new Error('未找到 SVG 根节点');
+      }
+      const bounds = parseSvgViewBox(root);
+      if (!bounds) {
+        throw new Error('无法解析 SVG 的视图框');
+      }
+      const { x: vbX, y: vbY, width: vbWidth, height: vbHeight } = bounds;
+      const paddingMm = Math.max(0, shapePadding);
+      const pxPerMmX = svgResult.viewWidth / svgResult.widthMm;
+      const pxPerMmY = svgResult.viewHeight / svgResult.heightMm;
+      const paddingX = paddingMm * pxPerMmX;
+      const paddingY = paddingMm * pxPerMmY;
+      const cornerRadiusPx = Math.max(0, shapeCornerRadius) * Math.min(pxPerMmX, pxPerMmY);
+      const ns = 'http://www.w3.org/2000/svg';
+      let element: Element;
+
+      if (shape === 'roundedRect') {
+        const width = Math.max(vbWidth - paddingX * 2, 0);
+        const height = Math.max(vbHeight - paddingY * 2, 0);
+        element = doc.createElementNS(ns, 'rect');
+        element.setAttribute('x', `${vbX + paddingX}`);
+        element.setAttribute('y', `${vbY + paddingY}`);
+        element.setAttribute('width', `${width}`);
+        element.setAttribute('height', `${height}`);
+        if (width > 0 && height > 0) {
+          const maxRadius = Math.min(width, height) / 2;
+          const radius = Math.min(cornerRadiusPx, maxRadius);
+          if (radius > 0) {
+            element.setAttribute('rx', `${radius}`);
+            element.setAttribute('ry', `${radius}`);
+          }
+        }
+      } else {
+        const radius = Math.max(0, Math.min(vbWidth, vbHeight) / 2 - Math.max(paddingX, paddingY));
+        element = doc.createElementNS(ns, 'circle');
+        element.setAttribute('cx', `${vbX + vbWidth / 2}`);
+        element.setAttribute('cy', `${vbY + vbHeight / 2}`);
+        element.setAttribute('r', `${radius}`);
+      }
+
+      element.setAttribute('fill', 'none');
+      element.setAttribute('stroke', shapeStrokeColor);
+      const strokeWidthPx = Math.max(0.1, shapeStrokeWidth * Math.min(pxPerMmX, pxPerMmY));
+      element.setAttribute('stroke-width', `${strokeWidthPx}`);
+      element.setAttribute('vector-effect', 'non-scaling-stroke');
+      element.setAttribute('data-extra-shape', 'manual');
+
+      root.appendChild(element);
+
+      const serialized = new XMLSerializer().serializeToString(doc);
+      setSvgResult((prev) => (prev ? { ...prev, svg: serialized } : prev));
+      setShapeMessage('已添加一个基础图形');
+      setShapeMessageTone('success');
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setShapeMessage(`添加基础图形失败：${message}`);
+      setShapeMessageTone('error');
+      setError(null);
+    }
+  };
+
+  const handleClearShapes = () => {
+    if (!svgResult) return;
+    if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+      setError('当前环境不支持 SVG 编辑');
+      return;
+    }
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgResult.svg, 'image/svg+xml');
+      const root = doc.documentElement as SVGSVGElement | null;
+      if (!root || root.tagName.toLowerCase() !== 'svg') {
+        throw new Error('未找到 SVG 根节点');
+      }
+
+      const extraShapes = root.querySelectorAll('[data-extra-shape]');
+      extraShapes.forEach((node) => node.parentNode?.removeChild(node));
+
+      const serialized = new XMLSerializer().serializeToString(doc);
+      setSvgResult((prev) => (prev ? { ...prev, svg: serialized } : prev));
+      setShapeMessage('已清空追加图形');
+      setShapeMessageTone('info');
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setShapeMessage(`清空追加图形失败：${message}`);
+      setShapeMessageTone('error');
+      setError(null);
+    }
+  };
+
+  const handleAutoFillRectangles = async () => {
+    console.log('[autoFill] trigger');
+    if (!svgResult) {
+      console.warn('[autoFill] skipped: svgResult is null');
+      setShapeMessage('请先生成 SVG 后再尝试自动填充');
+      setShapeMessageTone('warning');
+      return;
+    }
+    if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+      console.error('[autoFill] skipped: DOMParser/XMLSerializer unavailable');
+      setShapeMessage('当前环境不支持 SVG 编辑');
+      setShapeMessageTone('error');
+      return;
+    }
+
+    try {
+      console.time('[autoFill] total');
+      console.time('[autoFill] suggestRectanglesFromMask');
+      setAutoFilling(true);
+      setShapeMessage('正在自动填充矩形…');
+      setShapeMessageTone('info');
+      setError(null);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const suggestions = suggestRectanglesFromMask(
+        svgResult.mask,
+        svgResult.viewWidth,
+        svgResult.viewHeight,
+        svgResult.widthMm,
+        svgResult.heightMm,
+        {
+          maxWidthMm: 100,
+          maxHeightMm: 50,
+          minWidthMm: 30,
+          minHeightMm: 20,
+          stepMm: Math.max(0.2, shapeStep),
+          gapMm: shapeGap,
+          coverageThreshold: 0.9,
+          orientation: 'both',
+          maxShapes: 500,
+        }
+      );
+
+      console.timeEnd('[autoFill] suggestRectanglesFromMask');
+      console.log('[autoFill] suggestions count:', suggestions.length);
+
+      if (suggestions.length === 0) {
+        console.log('[autoFill] no suggestions found');
+        setShapeMessage('未找到可用的白色区域，请尝试减小间距或调整扫描步长。');
+        setShapeMessageTone('warning');
+        return;
+      }
+
+      console.time('[autoFill] DOM parsing & append');
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgResult.svg, 'image/svg+xml');
+      const root = doc.documentElement as SVGSVGElement | null;
+      if (!root || root.tagName.toLowerCase() !== 'svg') {
+        throw new Error('未找到 SVG 根节点');
+      }
+
+      const existing = root.querySelectorAll('[data-auto-fill="true"]');
+      existing.forEach((node) => node.parentNode?.removeChild(node));
+
+      const ns = 'http://www.w3.org/2000/svg';
+      const pxPerMmX = svgResult.viewWidth / svgResult.widthMm;
+      const pxPerMmY = svgResult.viewHeight / svgResult.heightMm;
+      const cornerRadiusPx = Math.max(0, shapeCornerRadius) * Math.min(pxPerMmX, pxPerMmY);
+      const strokeWidthPx = Math.max(0.1, shapeStrokeWidth * Math.min(pxPerMmX, pxPerMmY));
+
+      suggestions.forEach((rect) => {
+        const el = doc.createElementNS(ns, 'rect');
+        const xPx = rect.xMm * pxPerMmX;
+        const yPx = rect.yMm * pxPerMmY;
+        const wPx = rect.widthMm * pxPerMmX;
+        const hPx = rect.heightMm * pxPerMmY;
+
+        el.setAttribute('x', `${xPx}`);
+        el.setAttribute('y', `${yPx}`);
+        el.setAttribute('width', `${wPx}`);
+        el.setAttribute('height', `${hPx}`);
+        const maxRadiusPx = Math.min(wPx, hPx) / 2;
+        const radiusPx = Math.min(cornerRadiusPx, maxRadiusPx);
+        if (radiusPx > 0) {
+          el.setAttribute('rx', `${radiusPx}`);
+          el.setAttribute('ry', `${radiusPx}`);
+        }
+        el.setAttribute('fill', 'none');
+        el.setAttribute('stroke', shapeStrokeColor);
+        el.setAttribute('stroke-width', `${strokeWidthPx}`);
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
+        el.setAttribute('data-auto-fill', 'true');
+        el.setAttribute('data-extra-shape', 'auto');
+        root.appendChild(el);
+      });
+
+      const serialized = new XMLSerializer().serializeToString(doc);
+      console.timeEnd('[autoFill] DOM parsing & append');
+      setSvgResult((prev) => (prev ? { ...prev, svg: serialized } : prev));
+      setShapeMessage(`已自动填充 ${suggestions.length} 个矩形（每个 ≤ 100×50 mm）。`);
+      setShapeMessageTone('success');
+      setError(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[autoFill] error:', message, err);
+      setShapeMessage(`自动填充失败：${message}`);
+      setShapeMessageTone('error');
+      setError(null);
+    } finally {
+      setAutoFilling(false);
+      console.timeEnd('[autoFill] total');
+    }
+  };
+
   const handleAutoCorrect = async () => {
     setProcessing(true);
     setError(null);
@@ -305,12 +576,16 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
     setError(null);
     try {
       const baseImage = correctedImage ?? autoCorrect?.correctedDataUrl ?? imageData;
-      const svg = await processImageToSvg(baseImage, {
+      const result = await processImageToSvg(baseImage, {
         threshold: threshold ?? undefined,
         turdSize,
         optTolerance,
+        widthMm: actualWidth > 0 ? actualWidth : undefined,
+        heightMm: actualHeight > 0 ? actualHeight : undefined,
       });
-      setSvgResult(svg);
+      setSvgResult(result);
+      setShapeMessage(null);
+      setShapeMessageTone('info');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(`图像处理失败：${message}`);
@@ -322,12 +597,12 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   const handleConfirm = () => {
     if (!svgResult) return;
     const size = actualWidth > 0 && actualHeight > 0 ? { width: actualWidth, height: actualHeight } : undefined;
-    onSvgGenerated(svgResult, size);
+    onSvgGenerated(svgResult.svg, size);
   };
 
   const handleDownload = () => {
     if (!svgResult) return;
-    const blob = new Blob([svgResult], { type: 'image/svg+xml' });
+    const blob = new Blob([svgResult.svg], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -463,7 +738,118 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
         {svgResult && (
           <div className="svg-preview">
             <h3>生成的SVG</h3>
-            <div className="svg-container" dangerouslySetInnerHTML={{ __html: svgResult }} />
+            <div className="svg-container" dangerouslySetInnerHTML={{ __html: svgResult.svg }} />
+            <div className="svg-shape-tools">
+              <h4>追加基础图形</h4>
+              <p className="hint">
+                在空白区域填入基础图形，默认尽量贴边，可调整留白、圆角和线宽；圆形会忽略圆角设置。
+              </p>
+              <div className="shape-tool-layout">
+                <div className="shape-inputs">
+                  <div className="shape-control-grid">
+                    <label>
+                      留白
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={shapePadding}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setShapePadding(Number.isFinite(value) ? Math.max(0, value) : 0);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      圆角
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={shapeCornerRadius}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setShapeCornerRadius(Number.isFinite(value) ? Math.max(0, value) : 0);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      线宽
+                      <input
+                        type="number"
+                        min={0.1}
+                        step={0.1}
+                        value={shapeStrokeWidth}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setShapeStrokeWidth(Number.isFinite(value) ? Math.max(0.1, value) : 0.1);
+                        }}
+                      />
+                    </label>
+                    <label>
+                      矩形间距 (mm)
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={shapeGap}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setShapeGap(Number.isFinite(value) ? Math.max(0, value) : 0);
+                        }}
+                      />
+                    </label>
+                    <label className="color-picker">
+                      颜色
+                      <input
+                        type="color"
+                        value={shapeStrokeColor}
+                        onChange={(e) => setShapeStrokeColor(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      扫描步长 (mm)
+                      <input
+                        type="number"
+                        min={0.2}
+                        step={0.1}
+                        value={shapeStep}
+                        onChange={(e) => {
+                          const value = Number(e.target.value);
+                          setShapeStep(Number.isFinite(value) ? Math.max(0.2, value) : 0.2);
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div className="shape-actions">
+                  <div className="shape-buttons">
+                    <button className="btn btn-secondary" onClick={() => handleAddShape('roundedRect')}>
+                      添加圆角矩形
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => handleAddShape('circle')}>
+                      添加圆形
+                    </button>
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleAutoFillRectangles}
+                      disabled={autoFilling}
+                    >
+                      {autoFilling ? '自动填充中…' : '自动填充矩形'}
+                    </button>
+                    <button className="btn btn-secondary" onClick={handleClearShapes}>
+                      清空追加图形
+                    </button>
+                  </div>
+                  {shapeMessage && (
+                    <div className={`shape-message ${shapeMessageTone}`}>
+                      {autoFilling && <span className="shape-spinner" aria-hidden="true" />}
+                      {shapeMessage}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
             <div className="svg-actions">
               <button className="btn btn-primary" onClick={handleConfirm}>确认使用</button>
               <button className="btn" onClick={handleDownload}>下载SVG</button>

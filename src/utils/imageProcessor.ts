@@ -19,8 +19,36 @@ export interface AutoCorrectResult {
   redPixels: Point[];
 }
 
-const BOARD_WIDTH_MM = 645;
-const BOARD_HEIGHT_MM = 525;
+export interface SvgProcessResult {
+  svg: string;
+  viewWidth: number;
+  viewHeight: number;
+  mask: Uint8Array;
+  widthMm: number;
+  heightMm: number;
+}
+
+export interface RectangleSuggestion {
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
+}
+
+export interface RectanglePackingOptions {
+  maxWidthMm: number;
+  maxHeightMm: number;
+  minWidthMm?: number;
+  minHeightMm?: number;
+  stepMm?: number;
+  gapMm?: number;
+  coverageThreshold?: number;
+  orientation?: 'landscape' | 'portrait' | 'both';
+  maxShapes?: number;
+}
+
+const BOARD_WIDTH_MM = 525;
+const BOARD_HEIGHT_MM = 645;
 const MAX_SCAN_PIXELS = 10_000;
 const PIXELS_PER_MM = 4;
 
@@ -82,8 +110,10 @@ export async function processImageToSvg(
     threshold?: number;
     turdSize?: number;
     optTolerance?: number;
+    widthMm?: number;
+    heightMm?: number;
   }
-): Promise<string> {
+): Promise<SvgProcessResult> {
   const img = await loadImage(imageData);
 
   const maxDimension = 1200;
@@ -117,7 +147,7 @@ export async function processImageToSvg(
 
   const pngDataUrl = canvas.toDataURL('image/png');
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<SvgProcessResult>((resolve, reject) => {
     Potrace.trace(
       pngDataUrl,
       {
@@ -131,7 +161,22 @@ export async function processImageToSvg(
         if (error) {
           reject(error);
         } else {
-          resolve(svg);
+          const widthMm = options?.widthMm ?? BOARD_WIDTH_MM;
+          const heightMm = options?.heightMm ?? BOARD_HEIGHT_MM;
+          const adjusted = adjustSvgDimensions(svg, {
+            widthMm: options?.widthMm,
+            heightMm: options?.heightMm,
+            viewWidth: canvas.width,
+            viewHeight: canvas.height,
+          });
+          resolve({
+            svg: adjusted,
+            viewWidth: canvas.width,
+            viewHeight: canvas.height,
+            mask: binaryData.slice(),
+            widthMm,
+            heightMm,
+          });
         }
       }
     );
@@ -334,4 +379,210 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
     img.onerror = reject;
     img.src = dataUrl;
   });
+}
+
+function adjustSvgDimensions(
+  svg: string,
+  params: { widthMm?: number; heightMm?: number; viewWidth: number; viewHeight: number }
+): string {
+  const { widthMm, heightMm, viewWidth, viewHeight } = params;
+  if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+    return svg;
+  }
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(svg, 'image/svg+xml');
+    const root = doc.documentElement;
+    if (!root || root.tagName.toLowerCase() !== 'svg') {
+      return svg;
+    }
+
+    if (!root.getAttribute('viewBox')) {
+      root.setAttribute('viewBox', `0 0 ${viewWidth} ${viewHeight}`);
+    }
+
+    if (widthMm && widthMm > 0) {
+      root.setAttribute('width', `${widthMm}mm`);
+    }
+    if (heightMm && heightMm > 0) {
+      root.setAttribute('height', `${heightMm}mm`);
+    }
+
+    if (!root.getAttribute('xmlns')) {
+      root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    }
+
+    return new XMLSerializer().serializeToString(doc);
+  } catch (error) {
+    console.warn('[processImageToSvg] 调整 SVG 尺寸失败', error);
+    return svg;
+  }
+}
+
+function buildDescendingRange(max: number, min: number, step: number): number[] {
+  const values: number[] = [];
+  if (step <= 0) {
+    values.push(max, min);
+    return Array.from(new Set(values)).sort((a, b) => b - a);
+  }
+  let current = max;
+  while (current >= min) {
+    values.push(Number(current.toFixed(4)));
+    current -= step;
+  }
+  if (values[values.length - 1] !== Number(min.toFixed(4))) {
+    values.push(Number(min.toFixed(4)));
+  }
+  return Array.from(new Set(values)).sort((a, b) => b - a);
+}
+
+export function suggestRectanglesFromMask(
+  mask: Uint8Array,
+  maskWidth: number,
+  maskHeight: number,
+  widthMm: number,
+  heightMm: number,
+  options: RectanglePackingOptions
+): RectangleSuggestion[] {
+  if (mask.length !== maskWidth * maskHeight) {
+    throw new Error('蒙版尺寸与数组长度不一致');
+  }
+  if (widthMm <= 0 || heightMm <= 0) {
+    throw new Error('无效的实际尺寸');
+  }
+
+  const pxPerMmX = maskWidth / widthMm;
+  const pxPerMmY = maskHeight / heightMm;
+
+  const maxWidthMm = Math.max(options.maxWidthMm, 1);
+  const maxHeightMm = Math.max(options.maxHeightMm, 1);
+  const minWidthMm = Math.max(options.minWidthMm ?? 20, 1);
+  const minHeightMm = Math.max(options.minHeightMm ?? 20, 1);
+  const stepMm = Math.max(options.stepMm ?? 10, 0.2);
+  const gapMm = Math.max(options.gapMm ?? 5, 0);
+  const coverageThreshold = Math.min(Math.max(options.coverageThreshold ?? 0.95, 0), 1);
+  const orientation = options.orientation ?? 'both';
+  const maxShapes = options.maxShapes ?? 200;
+
+  const widthCandidates = buildDescendingRange(maxWidthMm, minWidthMm, stepMm);
+  const heightCandidates = buildDescendingRange(maxHeightMm, minHeightMm, stepMm);
+
+  const sizePairs: Array<{ widthMm: number; heightMm: number }> = [];
+  const seen = new Set<string>();
+
+  const addPair = (w: number, h: number) => {
+    const key = `${w.toFixed(3)}-${h.toFixed(3)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      sizePairs.push({ widthMm: w, heightMm: h });
+    }
+  };
+
+  widthCandidates.forEach((w) => {
+    heightCandidates.forEach((h) => {
+      if (orientation === 'landscape') {
+        addPair(w, h);
+      } else if (orientation === 'portrait') {
+        addPair(h, w);
+      } else {
+        addPair(w, h);
+        if (w !== h) {
+          addPair(h, w);
+        }
+      }
+    });
+  });
+
+  sizePairs.sort((a, b) => b.widthMm * b.heightMm - a.widthMm * a.heightMm);
+
+  const available = new Uint8Array(maskWidth * maskHeight);
+  const original = new Uint8Array(maskWidth * maskHeight);
+  for (let i = 0; i < mask.length; i++) {
+    const isWhite = mask[i] > 200 ? 1 : 0;
+    available[i] = isWhite;
+    original[i] = isWhite;
+  }
+
+  const gapPxX = Math.round(gapMm * pxPerMmX);
+  const gapPxY = Math.round(gapMm * pxPerMmY);
+  const stepPxX = Math.max(1, Math.round(stepMm * pxPerMmX));
+  const stepPxY = Math.max(1, Math.round(stepMm * pxPerMmY));
+
+  const suggestions: RectangleSuggestion[] = [];
+
+  const isAreaUnused = (x: number, y: number, w: number, h: number): boolean => {
+    const startX = Math.max(0, x - gapPxX);
+    const startY = Math.max(0, y - gapPxY);
+    const endX = Math.min(maskWidth, x + w + gapPxX);
+    const endY = Math.min(maskHeight, y + h + gapPxY);
+    for (let yy = startY; yy < endY; yy++) {
+      const rowOffset = yy * maskWidth;
+      for (let xx = startX; xx < endX; xx++) {
+        if (!available[rowOffset + xx]) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  const whiteCoverageRatio = (x: number, y: number, w: number, h: number): number => {
+    let white = 0;
+    let total = 0;
+    for (let yy = y; yy < y + h; yy++) {
+      const rowOffset = yy * maskWidth;
+      for (let xx = x; xx < x + w; xx++) {
+        total++;
+        if (original[rowOffset + xx]) {
+          white++;
+        }
+      }
+    }
+    return total === 0 ? 0 : white / total;
+  };
+
+  const markUsed = (x: number, y: number, w: number, h: number) => {
+    const startX = Math.max(0, x - gapPxX);
+    const startY = Math.max(0, y - gapPxY);
+    const endX = Math.min(maskWidth, x + w + gapPxX);
+    const endY = Math.min(maskHeight, y + h + gapPxY);
+    for (let yy = startY; yy < endY; yy++) {
+      const rowOffset = yy * maskWidth;
+      for (let xx = startX; xx < endX; xx++) {
+        available[rowOffset + xx] = 0;
+      }
+    }
+  };
+
+  const toMm = (valuePx: number, perMm: number) => valuePx / perMm;
+
+  for (let y = 0; y < maskHeight && suggestions.length < maxShapes; y += stepPxY) {
+    for (let x = 0; x < maskWidth && suggestions.length < maxShapes; x += stepPxX) {
+      if (!available[y * maskWidth + x]) continue;
+
+      for (const pair of sizePairs) {
+        const widthPx = Math.max(1, Math.round(pair.widthMm * pxPerMmX));
+        const heightPx = Math.max(1, Math.round(pair.heightMm * pxPerMmY));
+        if (widthPx < 1 || heightPx < 1) continue;
+        if (x + widthPx > maskWidth || y + heightPx > maskHeight) continue;
+
+        if (!isAreaUnused(x, y, widthPx, heightPx)) continue;
+
+        const coverage = whiteCoverageRatio(x, y, widthPx, heightPx);
+        if (coverage < coverageThreshold) continue;
+
+        suggestions.push({
+          xMm: toMm(x, pxPerMmX),
+          yMm: toMm(y, pxPerMmY),
+          widthMm: toMm(widthPx, pxPerMmX),
+          heightMm: toMm(heightPx, pxPerMmY),
+        });
+
+        markUsed(x, y, widthPx, heightPx);
+        break;
+      }
+    }
+  }
+
+  return suggestions;
 }
