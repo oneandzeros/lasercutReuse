@@ -213,8 +213,27 @@
   border-radius: 12px;
   padding: 12px;
   background: #f9fafb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
+.svg-preview-area {
+  width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.svg-preview-area svg {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
 .svg-shape-tools {
   display: flex;
   flex-direction: column;
@@ -292,6 +311,21 @@
 
 .shape-message.error {
   color: #dc2626;
+}
+
+.shape-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+.shape-progress span {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #d1d5db;
 }
 
 .shape-spinner {

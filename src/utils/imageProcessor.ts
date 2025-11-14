@@ -45,6 +45,18 @@ export interface RectanglePackingOptions {
   coverageThreshold?: number;
   orientation?: 'landscape' | 'portrait' | 'both';
   maxShapes?: number;
+  progressIntervalRows?: number;
+  yieldAfterRows?: number;
+  onProgress?: (progress: RectanglePackingProgress) => void | Promise<void>;
+  shouldAbort?: () => boolean;
+}
+
+export interface RectanglePackingProgress {
+  progress: number;
+  processedRows: number;
+  totalRows: number;
+  suggestions: number;
+  lastSuggestion?: RectangleSuggestion | null;
 }
 
 const BOARD_WIDTH_MM = 525;
@@ -436,14 +448,14 @@ function buildDescendingRange(max: number, min: number, step: number): number[] 
   return Array.from(new Set(values)).sort((a, b) => b - a);
 }
 
-export function suggestRectanglesFromMask(
+export async function suggestRectanglesFromMask(
   mask: Uint8Array,
   maskWidth: number,
   maskHeight: number,
   widthMm: number,
   heightMm: number,
   options: RectanglePackingOptions
-): RectangleSuggestion[] {
+): Promise<RectangleSuggestion[]> {
   if (mask.length !== maskWidth * maskHeight) {
     throw new Error('蒙版尺寸与数组长度不一致');
   }
@@ -463,6 +475,10 @@ export function suggestRectanglesFromMask(
   const coverageThreshold = Math.min(Math.max(options.coverageThreshold ?? 0.95, 0), 1);
   const orientation = options.orientation ?? 'both';
   const maxShapes = options.maxShapes ?? 200;
+  const progressIntervalRows = Math.max(1, Math.round(options.progressIntervalRows ?? 5));
+  const yieldAfterRows = Math.max(0, Math.round(options.yieldAfterRows ?? 20));
+  const onProgress = options.onProgress;
+  const shouldAbort = options.shouldAbort;
 
   const widthCandidates = buildDescendingRange(maxWidthMm, minWidthMm, stepMm);
   const heightCandidates = buildDescendingRange(maxHeightMm, minHeightMm, stepMm);
@@ -509,6 +525,30 @@ export function suggestRectanglesFromMask(
   const stepPxY = Math.max(1, Math.round(stepMm * pxPerMmY));
 
   const suggestions: RectangleSuggestion[] = [];
+  const totalRows = Math.max(1, Math.ceil(maskHeight / stepPxY));
+  let processedRows = 0;
+
+  const reportProgress = async (force = false) => {
+    if (!onProgress) return;
+    if (!force && processedRows % progressIntervalRows !== 0) return;
+    try {
+      const payload: RectanglePackingProgress = {
+        progress: Math.min(1, processedRows / totalRows),
+        processedRows,
+        totalRows,
+        suggestions: suggestions.length,
+        lastSuggestion: suggestions.length > 0 ? suggestions[suggestions.length - 1] : null,
+      };
+      const maybe = onProgress(payload);
+      if (maybe instanceof Promise) {
+        await maybe;
+      }
+    } catch (error) {
+      console.warn('[suggestRectanglesFromMask] 进度回调异常', error);
+    }
+  };
+
+  await reportProgress(true);
 
   const isAreaUnused = (x: number, y: number, w: number, h: number): boolean => {
     const startX = Math.max(0, x - gapPxX);
@@ -557,7 +597,16 @@ export function suggestRectanglesFromMask(
   const toMm = (valuePx: number, perMm: number) => valuePx / perMm;
 
   for (let y = 0; y < maskHeight && suggestions.length < maxShapes; y += stepPxY) {
+    if (shouldAbort && shouldAbort()) {
+      break;
+    }
+    
+    processedRows += 1;
     for (let x = 0; x < maskWidth && suggestions.length < maxShapes; x += stepPxX) {
+      if (shouldAbort && shouldAbort()) {
+        break;
+      }
+      
       if (!available[y * maskWidth + x]) continue;
 
       for (const pair of sizePairs) {
@@ -582,7 +631,20 @@ export function suggestRectanglesFromMask(
         break;
       }
     }
+
+    await reportProgress();
+
+    if (yieldAfterRows > 0 && processedRows % yieldAfterRows === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    
+    if (shouldAbort && shouldAbort()) {
+      break;
+    }
   }
+
+  processedRows = Math.min(processedRows, totalRows);
+  await reportProgress(true);
 
   return suggestions;
 }
