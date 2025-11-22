@@ -1152,6 +1152,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
 
           <div className="processing-params">
             <h4>实际尺寸（可选）</h4>
+            <p className="hint">906一般为482mm×603mm</p>
             <label>
               宽度 (mm)
               <input type="number" min={0} step={0.1} value={actualWidth}
