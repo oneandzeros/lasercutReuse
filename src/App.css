@@ -10,9 +10,48 @@
   padding: 20px 40px;
 }
 
-.app-header h1 {
-  font-size: 24px;
+.app-header-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 16px;
+}
+
+.app-logo {
+  height: 48px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  flex-shrink: 0;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  display: block;
+}
+
+.app-logo[style*="display: none"] {
+  display: none !important;
+}
+
+.app-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-title-main {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  color: #fff;
+}
+
+.app-title-subtitle {
+  font-size: 14px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 400;
+  line-height: 1.2;
 }
 
 .step-indicator {

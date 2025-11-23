@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './NestingPanel.css';
 
 interface NestingPanelProps {
@@ -8,15 +9,16 @@ interface NestingPanelProps {
 }
 
 const NestingPanel: React.FC<NestingPanelProps> = ({ materialSvg, actualSize, onBack }) => {
+  const { t } = useTranslation();
   const [outputMessage, setOutputMessage] = useState<string | null>(null);
 
   const handleRunDeepnest = async () => {
     if (!window.electronAPI) {
-      setOutputMessage('Electron API 未初始化');
+      setOutputMessage(t('nestingPanel.error.electronNotInit', { defaultValue: 'Electron API 未初始化' }));
       return;
     }
 
-    setOutputMessage('正在调用 Deepnest ...');
+    setOutputMessage(t('nestingPanel.callingDeepnest', { defaultValue: '正在调用 Deepnest ...' }));
     const result = await window.electronAPI.runDeepnest({
       materialSvg,
       partsSvg: [],
@@ -24,9 +26,9 @@ const NestingPanel: React.FC<NestingPanelProps> = ({ materialSvg, actualSize, on
     });
 
     if (result.success) {
-      setOutputMessage(result.message ?? 'Deepnest 调用完成');
+      setOutputMessage(result.message ?? t('nestingPanel.deepnestComplete', { defaultValue: 'Deepnest 调用完成' }));
     } else {
-      setOutputMessage(result.message ?? '调用失败');
+      setOutputMessage(result.message ?? t('nestingPanel.deepnestFailed', { defaultValue: '调用失败' }));
     }
   };
 
@@ -53,21 +55,21 @@ const NestingPanel: React.FC<NestingPanelProps> = ({ materialSvg, actualSize, on
   return (
     <div className="nesting-panel">
       <div className="panel-header">
-        <button className="btn" onClick={onBack}>← 返回调参</button>
+        <button className="btn" onClick={onBack}>{t('nestingPanel.back')}</button>
         <div className="size-info">
           {actualSize ? (
-            <span>实际尺寸：{actualSize.width.toFixed(1)} × {actualSize.height.toFixed(1)} mm</span>
+            <span>{t('nestingPanel.actualSize', { width: actualSize.width.toFixed(1), height: actualSize.height.toFixed(1) })}</span>
           ) : (
-            <span>未设置实际尺寸</span>
+            <span>{t('nestingPanel.noActualSize', { defaultValue: '未设置实际尺寸' })}</span>
           )}
         </div>
-        <button className="btn btn-secondary" onClick={handleDownload}>下载当前 SVG</button>
+        <button className="btn btn-secondary" onClick={handleDownload}>{t('nestingPanel.download')}</button>
       </div>
 
       <div className="material-preview" dangerouslySetInnerHTML={{ __html: materialSvg }} />
 
       <div className="panel-actions">
-        <button className="btn btn-primary" onClick={handleRunDeepnest}>调用 Deepnest 排版</button>
+        <button className="btn btn-primary" onClick={handleRunDeepnest}>{t('nestingPanel.optimize')}</button>
         {outputMessage && <span className="run-message">{outputMessage}</span>}
       </div>
     </div>

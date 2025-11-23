@@ -4,6 +4,7 @@
  */
 
 import React, { CSSProperties, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Point, AutoCorrectResult } from '../../utils/imageProcessor';
 import './CornerEditor.css';
 
@@ -28,6 +29,7 @@ const CornerEditor: React.FC<CornerEditorProps> = ({
   onOverlayClick,
   onHandlePointerDown,
 }) => {
+  const { t } = useTranslation();
   const debugCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // 计算角点手柄的样式位置
@@ -140,7 +142,7 @@ const CornerEditor: React.FC<CornerEditorProps> = ({
           </div>
         ))}
         {isImageReady && manualCorners.length < 4 && (
-          <div className="corner-tip">在图上点击剩余角点以补齐（{manualCorners.length}/4）</div>
+          <div className="corner-tip">{t('imageProcessor.cornerCorrection.tip', { count: manualCorners.length })}</div>
         )}
       </div>
     </>

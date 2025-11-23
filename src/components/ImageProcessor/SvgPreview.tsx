@@ -4,6 +4,7 @@
  */
 
 import React, { RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 import { SvgProcessResult } from '../../utils/imageProcessor';
 
 interface SvgPreviewProps {
@@ -17,11 +18,12 @@ const SvgPreview: React.FC<SvgPreviewProps> = ({
   previewSvg,
   svgContainerRef,
 }) => {
+  const { t } = useTranslation();
   if (!svgResult) return null;
 
   return (
     <div className="svg-preview">
-      <h3>生成的SVG</h3>
+      <h3>{t('imageProcessor.svgPreview.title')}</h3>
       <div className="svg-container" ref={svgContainerRef}>
         <div
           className="svg-preview-area"

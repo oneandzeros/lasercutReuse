@@ -13,7 +13,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
     },
-    title: '激光切割余料再利用工具',
+    title: 'FaboGinger',
   });
 
   const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;

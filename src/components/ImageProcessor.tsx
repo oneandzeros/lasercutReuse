@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   autoCorrectPerspective,
   processImageToSvg,
@@ -31,6 +32,7 @@ const DEFAULT_WIDTH_MM = 603;
 const DEFAULT_HEIGHT_MM = 482;
 
 const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerated, onBack }) => {
+  const { t } = useTranslation();
   // 基础状态
   const [processing, setProcessing] = useState(false);
   const [svgResult, setSvgResult] = useState<SvgProcessResult | null>(null);
@@ -77,6 +79,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
       }
     },
     onError: setError,
+    t, // 传递翻译函数
   });
 
   const svgManipulation = useSvgManipulation({
@@ -135,7 +138,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(`自动透视校正失败：${message}`);
+      setError(t('imageProcessor.errors.autoCorrectFailed', { message }));
     } finally {
       setProcessing(false);
     }
@@ -154,7 +157,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   // 生成SVG
   const handleProcess = async () => {
     if (cornerEditing.cornersDirty) {
-      setError('角点已修改，请先点击"应用角点"');
+      setError(t('imageProcessor.errors.cornerModified'));
       return;
     }
     setProcessing(true);
@@ -172,7 +175,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
       shapeTools.setShapeMessage(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(`图像处理失败：${message}`);
+      setError(t('imageProcessor.errors.imageProcessFailed', { message }));
     } finally {
       setProcessing(false);
     }
@@ -231,7 +234,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
     <div className="image-processor">
       <div className="processor-container">
         <div className="image-preview">
-          <h3>原始图片</h3>
+          <h3>{t('imageProcessor.originalImage')}</h3>
           <div className="preview-wrapper">
             <img ref={imageRef} alt="待处理" className="preview-image" onLoad={handleImageLoaded} />
             <CornerEditor
@@ -247,8 +250,8 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
           </div>
           {correctedImage && (
             <div className="corrected-preview">
-              <h4>校正预览</h4>
-              <img src={correctedImage} alt="校正结果" />
+              <h4>{t('imageProcessor.correctedPreview')}</h4>
+              <img src={correctedImage} alt={t('imageProcessor.correctedPreview')} />
             </div>
           )}
           {error && <div className="error-message">{error}</div>}
@@ -282,11 +285,11 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
               svgContainerRef={boundaryBox.svgContainerRef}
             />
             <div className="svg-shape-tools">
-              <h4>追加基础图形</h4>
+              <h4>{t('imageProcessor.shapeTools.title')}</h4>
               <p className="hint">
                 {boundaryBox.hasBoundaryBox
-                  ? '在边界框内的空白区域填入基础图形，默认尽量贴边，可调整留白、圆角和线宽；圆形会忽略圆角设置。'
-                  : '请先添加边界框，然后才能在边界框内的空白区域填入基础图形。'}
+                  ? t('imageProcessor.shapeTools.hint')
+                  : t('imageProcessor.shapeTools.hintNoBoundary')}
               </p>
 
               <BoundaryBoxManager
@@ -316,10 +319,10 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
             </div>
             <div className="svg-actions">
               <button className="btn btn-primary" onClick={handleConfirm}>
-                确认使用
+                {t('imageProcessor.actions.confirm')}
               </button>
               <button className="btn" onClick={handleDownload} disabled={!svgResult}>
-                下载SVG
+                {t('imageProcessor.actions.download')}
               </button>
             </div>
           </>
@@ -328,7 +331,7 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
 
       <div className="processor-controls">
         <button className="btn" onClick={onBack}>
-          ← 返回重拍
+          {t('imageProcessor.backToCapture')}
         </button>
       </div>
     </div>

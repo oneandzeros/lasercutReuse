@@ -1,0 +1,162 @@
+{
+  "common": {
+    "back": "Back",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "download": "Download",
+    "upload": "Upload",
+    "processing": "Processing…",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "app": {
+    "title": "FaboGinger",
+    "subtitle": "Laser Cutting Material Reuse Tool",
+    "step1": "Capture Material",
+    "step2": "Process Image",
+    "step3": "Nesting Optimization"
+  },
+  "cameraCapture": {
+    "title": "Capture or Upload Material Image",
+    "captureButton": "Capture",
+    "uploadButton": "Upload Image",
+    "rotateLeft": "Rotate Left",
+    "rotateRight": "Rotate Right",
+    "hint": "Please ensure the image is clear and contains complete material boundaries",
+    "enableCamera": "Enable Camera",
+    "initializing": "Initializing camera…",
+    "preparing": "Camera preparing…",
+    "stopCamera": "Stop Camera",
+    "confirmImage": "Confirm Use This Image",
+    "reselect": "Reselect",
+    "error": {
+      "cameraAccess": "Cannot access camera, please check permissions or use image upload"
+    }
+  },
+  "imageProcessor": {
+    "originalImage": "Original Image",
+    "correctedPreview": "Corrected Preview",
+    "backToCapture": "← Back to Capture",
+    "autoCorrect": {
+      "title": "Auto Correction",
+      "button": "Re-detect Corners Automatically",
+      "hint": "The system will try to automatically detect red tape corners and perform perspective correction."
+    },
+    "cornerCorrection": {
+      "title": "Corner Correction",
+      "hint": "Drag green dots or click on the image to add missing corners (order: top-left → top-right → bottom-right → bottom-left) to ensure correct perspective.",
+      "status": {
+        "current": "Current Status",
+        "clean": "Applied",
+        "dirty": "Not Applied (Please click \"Apply Corners\")"
+      },
+      "applyButton": "Apply Corners",
+      "applying": "Applying…",
+      "minCornersHint": "Mark at least three corners (four recommended) to complete perspective correction.",
+      "tip": "Click on the image to add remaining corners ({{count}}/4)"
+    },
+    "actualSize": {
+      "title": "Actual Size (Optional)",
+      "hint": "906 is usually 603mm×482mm",
+      "width": "Width (mm)",
+      "height": "Height (mm)",
+      "description": "Used to scale SVG to actual size."
+    },
+    "potrace": {
+      "title": "Potrace Parameters",
+      "autoThreshold": "Auto Threshold",
+      "threshold": "Threshold",
+      "turdSize": "Ignore Noise (turdSize)",
+      "optTolerance": "Smooth Tolerance"
+    },
+    "generateSvg": "Generate SVG",
+    "svgPreview": {
+      "title": "Generated SVG"
+    },
+    "shapeTools": {
+      "title": "Add Basic Shapes",
+      "hint": "Fill blank areas within the boundary box with basic shapes. Default is edge-to-edge, adjustable padding, corner radius, and stroke width. Circles ignore corner radius settings.",
+      "hintNoBoundary": "Please add a boundary box first, then you can fill blank areas within the boundary box with basic shapes.",
+      "management": {
+        "title": "[Management Operations]",
+        "boundaryWidth": "Boundary Box Width (mm)",
+        "boundaryHeight": "Boundary Box Height (mm)",
+        "addBoundary": "Add Boundary Box",
+        "reAddBoundary": "Re-add Boundary Box",
+        "clearShapes": "Clear Added Shapes"
+      },
+      "manual": {
+        "title": "[Manually Add Shapes]",
+        "padding": "Padding",
+        "cornerRadius": "Corner Radius",
+        "strokeWidth": "Stroke Width",
+        "color": "Color",
+        "addRoundedRect": "Add Rounded Rectangle",
+        "addCircle": "Add Circle",
+        "needBoundary": "Please add boundary box first"
+      },
+      "autoFill": {
+        "title": "[Auto-fill Rectangles]",
+        "gap": "Rectangle Gap (mm)",
+        "step": "Scan Step (mm)",
+        "button": "Auto-fill Rectangles",
+        "filling": "Auto-filling…",
+        "stop": "Stop",
+        "progress": "Scan Progress {{progress}}%",
+        "rows": "Rows {{processed}} / {{total}}",
+        "suggestions": "Placed {{count}} rectangles"
+      },
+      "messages": {
+        "shapeAdded": "Added one basic shape",
+        "boundaryAdded": "Added boundary box ({{width}}mm × {{height}}mm), drag to adjust position",
+        "shapesCleared": "Cleared added shapes",
+        "noBoundary": "Please add boundary box first",
+        "noSvg": "Please generate SVG first before auto-filling",
+        "noWhiteArea": "No available white areas found. Please try reducing gap or adjusting scan step.",
+        "autoFillSuccess": "Auto-filled {{count}} rectangles (each ≤ 100×50 mm).",
+        "autoFillCancelled": "Auto-fill cancelled",
+        "addShapeFailed": "Failed to add basic shape: {{message}}",
+        "autoFillFailed": "Auto-fill failed: {{message}}",
+        "clearShapesFailed": "Failed to clear added shapes: {{message}}",
+        "stoppingAutoFill": "Stopping auto-fill…"
+      }
+    },
+    "actions": {
+      "confirm": "Confirm Use",
+      "download": "Download SVG"
+    },
+    "errors": {
+      "autoCorrectFailed": "Auto perspective correction failed: {{message}}",
+      "cornerApplyFailed": "Corner application failed: {{message}}",
+      "imageProcessFailed": "Image processing failed: {{message}}",
+      "cornerModified": "Corners have been modified, please click \"Apply Corners\" first",
+      "imageNotLoaded": "Image not loaded yet",
+      "minCorners": "Please mark at least three corners",
+      "svgEditNotSupported": "SVG editing not supported in current environment"
+    }
+  },
+  "nestingPanel": {
+    "title": "Nesting Optimization",
+    "back": "← Back to Settings",
+    "uploadSvg": "Upload SVG File",
+    "materialInfo": "Material Info",
+    "width": "Width",
+    "height": "Height",
+    "unit": "mm",
+    "optimize": "Call Deepnest Nesting",
+    "optimizing": "Optimizing…",
+    "download": "Download Current SVG",
+    "hint": "Upload SVG files to be nested, the system will automatically optimize the layout",
+    "actualSize": "Actual Size: {{width}} × {{height}} mm",
+    "noActualSize": "No actual size set",
+    "callingDeepnest": "Calling Deepnest ...",
+    "deepnestComplete": "Deepnest call completed",
+    "deepnestFailed": "Call failed",
+    "error": {
+      "electronNotInit": "Electron API not initialized"
+    }
+  }
+}
+

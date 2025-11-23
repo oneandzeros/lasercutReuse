@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import './CameraCapture.css';
 
 interface CameraCaptureProps {
@@ -6,6 +7,7 @@ interface CameraCaptureProps {
 }
 
 const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCaptured }) => {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -47,7 +49,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCaptured }) => {
       }
     } catch (err) {
       console.error('摄像头打开失败', err);
-      setError('无法访问摄像头，请检查权限或使用图片上传');
+      setError(t('cameraCapture.error.cameraAccess', { defaultValue: '无法访问摄像头，请检查权限或使用图片上传' }));
       stopCamera();
     } finally {
       setIsInitializing(false);
@@ -188,33 +190,33 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCaptured }) => {
           <>
             {!isCameraActive ? (
               <button onClick={startCamera} className="btn btn-primary" disabled={isInitializing}>
-                {isInitializing ? '正在启动摄像头…' : '启用摄像头'}
+                {isInitializing ? t('cameraCapture.initializing', { defaultValue: '正在启动摄像头…' }) : t('cameraCapture.enableCamera', { defaultValue: '启用摄像头' })}
               </button>
             ) : (
               <>
                 <button onClick={handleCapture} className="btn btn-primary" disabled={!isCameraReady}>
-                  {isCameraReady ? '拍照识别' : '摄像头准备中…'}
+                  {isCameraReady ? t('cameraCapture.captureButton') : t('cameraCapture.preparing', { defaultValue: '摄像头准备中…' })}
                 </button>
                 <button onClick={stopCamera} className="btn btn-secondary">
-                  关闭摄像头
+                  {t('cameraCapture.stopCamera', { defaultValue: '关闭摄像头' })}
                 </button>
               </>
             )}
             <label className="btn btn-secondary">
-              选择图片上传
+              {t('cameraCapture.uploadButton')}
               <input type="file" accept="image/*" onChange={handleFileUpload} hidden />
             </label>
           </>
         ) : (
           <>
             <button onClick={handleConfirmImage} className="btn btn-primary">
-              确认使用此图片
+              {t('cameraCapture.confirmImage', { defaultValue: '确认使用此图片' })}
             </button>
             <button onClick={handleRotateLeft} className="btn btn-secondary">
-              左转90°
+              {t('cameraCapture.rotateLeft')}
             </button>
             <button onClick={handleRotateRight} className="btn btn-secondary">
-              右转90°
+              {t('cameraCapture.rotateRight')}
             </button>
             <button 
               onClick={() => {
@@ -224,7 +226,7 @@ const CameraCapture: React.FC<CameraCaptureProps> = ({ onImageCaptured }) => {
               }} 
               className="btn btn-secondary"
             >
-              重新选择
+              {t('cameraCapture.reselect', { defaultValue: '重新选择' })}
             </button>
           </>
         )}

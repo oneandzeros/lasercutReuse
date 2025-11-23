@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { RectanglePackingProgress } from '../../utils/imageProcessor';
 import { ShapeMessageTone } from '../../hooks/useShapeTools';
 
@@ -41,14 +42,16 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
   shapeMessage,
   shapeMessageTone,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <>
       {/* 手动添加图形区域 */}
       <div className="shape-section">
-        <h5>【手动添加图形】</h5>
+        <h5>{t('imageProcessor.shapeTools.manual.title')}</h5>
         <div className="shape-control-grid">
           <label>
-            留白
+            {t('imageProcessor.shapeTools.manual.padding')}
             <input
               type="number"
               min={0}
@@ -61,7 +64,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            圆角
+            {t('imageProcessor.shapeTools.manual.cornerRadius')}
             <input
               type="number"
               min={0}
@@ -74,7 +77,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            线宽
+            {t('imageProcessor.shapeTools.manual.strokeWidth')}
             <input
               type="number"
               min={0.1}
@@ -87,7 +90,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label className="color-picker">
-            颜色
+            {t('imageProcessor.shapeTools.manual.color')}
             <input
               type="color"
               value={shapeState.strokeColor}
@@ -100,27 +103,27 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             className="btn btn-secondary"
             onClick={() => onAddShape('roundedRect')}
             disabled={!hasBoundaryBox}
-            title={!hasBoundaryBox ? '请先添加边界框' : ''}
+            title={!hasBoundaryBox ? t('imageProcessor.shapeTools.manual.needBoundary') : ''}
           >
-            添加圆角矩形
+            {t('imageProcessor.shapeTools.manual.addRoundedRect')}
           </button>
           <button
             className="btn btn-secondary"
             onClick={() => onAddShape('circle')}
             disabled={!hasBoundaryBox}
-            title={!hasBoundaryBox ? '请先添加边界框' : ''}
+            title={!hasBoundaryBox ? t('imageProcessor.shapeTools.manual.needBoundary') : ''}
           >
-            添加圆形
+            {t('imageProcessor.shapeTools.manual.addCircle')}
           </button>
         </div>
       </div>
 
       {/* 自动填充矩形区域 */}
       <div className="shape-section">
-        <h5>【自动填充矩形】</h5>
+        <h5>{t('imageProcessor.shapeTools.autoFill.title')}</h5>
         <div className="shape-control-grid">
           <label>
-            留白
+            {t('imageProcessor.shapeTools.manual.padding')}
             <input
               type="number"
               min={0}
@@ -133,7 +136,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            圆角
+            {t('imageProcessor.shapeTools.manual.cornerRadius')}
             <input
               type="number"
               min={0}
@@ -146,7 +149,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            线宽
+            {t('imageProcessor.shapeTools.manual.strokeWidth')}
             <input
               type="number"
               min={0.1}
@@ -159,7 +162,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label className="color-picker">
-            颜色
+            {t('imageProcessor.shapeTools.manual.color')}
             <input
               type="color"
               value={shapeState.strokeColor}
@@ -167,7 +170,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            矩形间距 (mm)
+            {t('imageProcessor.shapeTools.autoFill.gap')}
             <input
               type="number"
               min={0}
@@ -180,7 +183,7 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             />
           </label>
           <label>
-            扫描步长 (mm)
+            {t('imageProcessor.shapeTools.autoFill.step')}
             <input
               type="number"
               min={1.0}
@@ -198,24 +201,23 @@ const ShapeTools: React.FC<ShapeToolsProps> = ({
             className="btn btn-primary"
             onClick={onAutoFill}
             disabled={autoFilling || !hasBoundaryBox}
-            title={!hasBoundaryBox ? '请先添加边界框' : ''}
+            title={!hasBoundaryBox ? t('imageProcessor.shapeTools.manual.needBoundary') : ''}
           >
-            {autoFilling ? '自动填充中…' : '自动填充矩形'}
+            {autoFilling ? t('imageProcessor.shapeTools.autoFill.filling') : t('imageProcessor.shapeTools.autoFill.button')}
           </button>
           {autoFilling && (
             <button className="btn btn-secondary" onClick={onStopAutoFill}>
-              停止
+              {t('imageProcessor.shapeTools.autoFill.stop')}
             </button>
           )}
         </div>
         {autoFilling && autoFillProgress && (
           <div className="shape-progress">
-            <span>扫描进度 {Math.round((autoFillProgress.progress ?? 0) * 100)}%</span>
+            <span>{t('imageProcessor.shapeTools.autoFill.progress', { progress: Math.round((autoFillProgress.progress ?? 0) * 100) })}</span>
             <span>
-              行程 {autoFillProgress.processedRows}
-              {autoFillProgress.totalRows ? ` / ${autoFillProgress.totalRows}` : ''}
+              {t('imageProcessor.shapeTools.autoFill.rows', { processed: autoFillProgress.processedRows, total: autoFillProgress.totalRows || 0 })}
             </span>
-            <span>已放置 {autoFillProgress.suggestions} 个矩形</span>
+            <span>{t('imageProcessor.shapeTools.autoFill.suggestions', { count: autoFillProgress.suggestions })}</span>
           </div>
         )}
       </div>

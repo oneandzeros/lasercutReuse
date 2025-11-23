@@ -1,0 +1,162 @@
+{
+  "common": {
+    "back": "返回",
+    "confirm": "确认",
+    "cancel": "取消",
+    "download": "下载",
+    "upload": "上传",
+    "processing": "处理中…",
+    "error": "错误",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息"
+  },
+  "app": {
+    "title": "FaboGinger",
+    "subtitle": "激光切割余料再利用工具",
+    "step1": "拍摄余料",
+    "step2": "处理图像",
+    "step3": "排版优化"
+  },
+  "cameraCapture": {
+    "title": "拍摄或上传余料图片",
+    "captureButton": "拍照",
+    "uploadButton": "上传图片",
+    "rotateLeft": "向左旋转",
+    "rotateRight": "向右旋转",
+    "hint": "请确保图片清晰，包含完整的余料边界",
+    "enableCamera": "启用摄像头",
+    "initializing": "正在启动摄像头…",
+    "preparing": "摄像头准备中…",
+    "stopCamera": "关闭摄像头",
+    "confirmImage": "确认使用此图片",
+    "reselect": "重新选择",
+    "error": {
+      "cameraAccess": "无法访问摄像头，请检查权限或使用图片上传"
+    }
+  },
+  "imageProcessor": {
+    "originalImage": "原始图片",
+    "correctedPreview": "校正预览",
+    "backToCapture": "← 返回重拍",
+    "autoCorrect": {
+      "title": "自动校正",
+      "button": "重新自动识别角点",
+      "hint": "系统会尝试自动识别红色胶带角点并进行透视校正。"
+    },
+    "cornerCorrection": {
+      "title": "角点校正",
+      "hint": "拖动绿色圆点或点击图片添加缺失角点（顺序：左上 → 右上 → 右下 → 左下），以确保透视正确。",
+      "status": {
+        "current": "当前状态",
+        "clean": "已应用",
+        "dirty": "未应用（请点击\"应用角点\"）"
+      },
+      "applyButton": "应用角点",
+      "applying": "应用中…",
+      "minCornersHint": "至少标记三个角点（建议四个）以完成透视校正。",
+      "tip": "在图上点击剩余角点以补齐（{{count}}/4）"
+    },
+    "actualSize": {
+      "title": "实际尺寸（可选）",
+      "hint": "906一般为603mm×482mm",
+      "width": "宽度 (mm)",
+      "height": "高度 (mm)",
+      "description": "用于将 SVG 按真实尺寸缩放。"
+    },
+    "potrace": {
+      "title": "Potrace 参数",
+      "autoThreshold": "自动阈值",
+      "threshold": "阈值",
+      "turdSize": "忽略杂点 (turdSize)",
+      "optTolerance": "平滑容差"
+    },
+    "generateSvg": "生成SVG",
+    "svgPreview": {
+      "title": "生成的SVG"
+    },
+    "shapeTools": {
+      "title": "追加基础图形",
+      "hint": "在边界框内的空白区域填入基础图形，默认尽量贴边，可调整留白、圆角和线宽；圆形会忽略圆角设置。",
+      "hintNoBoundary": "请先添加边界框，然后才能在边界框内的空白区域填入基础图形。",
+      "management": {
+        "title": "【管理操作】",
+        "boundaryWidth": "边界框宽度 (mm)",
+        "boundaryHeight": "边界框高度 (mm)",
+        "addBoundary": "添加边界框",
+        "reAddBoundary": "重新添加边界框",
+        "clearShapes": "清空追加图形"
+      },
+      "manual": {
+        "title": "【手动添加图形】",
+        "padding": "留白",
+        "cornerRadius": "圆角",
+        "strokeWidth": "线宽",
+        "color": "颜色",
+        "addRoundedRect": "添加圆角矩形",
+        "addCircle": "添加圆形",
+        "needBoundary": "请先添加边界框"
+      },
+      "autoFill": {
+        "title": "【自动填充矩形】",
+        "gap": "矩形间距 (mm)",
+        "step": "扫描步长 (mm)",
+        "button": "自动填充矩形",
+        "filling": "自动填充中…",
+        "stop": "停止",
+        "progress": "扫描进度 {{progress}}%",
+        "rows": "行程 {{processed}} / {{total}}",
+        "suggestions": "已放置 {{count}} 个矩形"
+      },
+      "messages": {
+        "shapeAdded": "已添加一个基础图形",
+        "boundaryAdded": "已添加边界框（{{width}}mm × {{height}}mm），可拖拽调整位置",
+        "shapesCleared": "已清空追加图形",
+        "noBoundary": "请先添加边界框",
+        "noSvg": "请先生成 SVG 后再尝试自动填充",
+        "noWhiteArea": "未找到可用的白色区域，请尝试减小间距或调整扫描步长。",
+        "autoFillSuccess": "已自动填充 {{count}} 个矩形（每个 ≤ 100×50 mm）。",
+        "autoFillCancelled": "自动填充已取消",
+        "addShapeFailed": "添加基础图形失败：{{message}}",
+        "autoFillFailed": "自动填充失败：{{message}}",
+        "clearShapesFailed": "清空追加图形失败：{{message}}",
+        "stoppingAutoFill": "正在停止自动填充…"
+      }
+    },
+    "actions": {
+      "confirm": "确认使用",
+      "download": "下载SVG"
+    },
+    "errors": {
+      "autoCorrectFailed": "自动透视校正失败：{{message}}",
+      "cornerApplyFailed": "角点应用失败：{{message}}",
+      "imageProcessFailed": "图像处理失败：{{message}}",
+      "cornerModified": "角点已修改，请先点击\"应用角点\"",
+      "imageNotLoaded": "图片尚未加载完成",
+      "minCorners": "请至少标记三个角点",
+      "svgEditNotSupported": "当前环境不支持 SVG 编辑"
+    }
+  },
+  "nestingPanel": {
+    "title": "排版优化",
+    "back": "← 返回调参",
+    "uploadSvg": "上传SVG文件",
+    "materialInfo": "余料信息",
+    "width": "宽度",
+    "height": "高度",
+    "unit": "mm",
+    "optimize": "调用 Deepnest 排版",
+    "optimizing": "优化中…",
+    "download": "下载当前 SVG",
+    "hint": "上传需要排版的SVG文件，系统将自动优化排版",
+    "actualSize": "实际尺寸：{{width}} × {{height}} mm",
+    "noActualSize": "未设置实际尺寸",
+    "callingDeepnest": "正在调用 Deepnest ...",
+    "deepnestComplete": "Deepnest 调用完成",
+    "deepnestFailed": "调用失败",
+    "error": {
+      "electronNotInit": "Electron API 未初始化"
+    }
+  }
+}
+

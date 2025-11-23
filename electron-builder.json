@@ -1,6 +1,6 @@
 {
-  "appId": "com.lasermaterial.app",
-  "productName": "LaserMaterial",
+  "appId": "com.faboginger.app",
+  "productName": "FaboGinger",
   "files": [
     "dist/**/*",
     "dist-react/**/*",
@@ -20,7 +20,7 @@
         "arch": ["x64"]
       }
     ],
-    "publisherName": "LaserMaterial",
+    "publisherName": "FaboGinger",
     "verifyUpdateCodeSignature": false
   },
   "nsis": {
@@ -29,7 +29,7 @@
     "allowElevation": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "激光切割余料再利用工具",
+    "shortcutName": "FaboGinger",
     "deleteAppDataOnUninstall": false,
     "warningsAsErrors": false,
     "artifactName": "${productName}-Setup-${version}.${ext}"

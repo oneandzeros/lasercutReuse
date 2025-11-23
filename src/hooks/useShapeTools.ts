@@ -23,6 +23,7 @@ interface UseShapeToolsProps {
   hasBoundaryBox: boolean;
   onSvgUpdate: (svg: string) => void;
   onError: (error: string) => void;
+  t?: (key: string, options?: any) => string; // 可选的翻译函数
 }
 
 interface UseShapeToolsReturn {
@@ -54,6 +55,7 @@ export const useShapeTools = ({
   hasBoundaryBox,
   onSvgUpdate,
   onError,
+  t = (key: string) => key, // 默认返回键本身
 }: UseShapeToolsProps): UseShapeToolsReturn => {
   const [shapeState, setShapeState] = useState<ShapeState>(DEFAULT_SHAPE_STATE);
   const [autoFilling, setAutoFilling] = useState(false);
@@ -79,11 +81,11 @@ export const useShapeTools = ({
   const handleAddShape = (shape: 'roundedRect' | 'circle') => {
     if (!svgResult) return;
     if (!hasBoundaryBox) {
-      setShapeMessage('请先添加边界框', 'warning');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.noBoundary'), 'warning');
       return;
     }
     if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
-      onError('当前环境不支持 SVG 编辑');
+      onError(t('imageProcessor.errors.svgEditNotSupported'));
       return;
     }
 
@@ -156,32 +158,32 @@ export const useShapeTools = ({
 
       const serialized = new XMLSerializer().serializeToString(doc);
       onSvgUpdate(serialized);
-      setShapeMessage('已添加一个基础图形', 'success');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.shapeAdded'), 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setShapeMessage(`添加基础图形失败：${message}`, 'error');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.addShapeFailed', { message }), 'error');
     }
   };
 
   // 自动填充矩形
   const handleAutoFillRectangles = async () => {
     if (!svgResult) {
-      setShapeMessage('请先生成 SVG 后再尝试自动填充', 'warning');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.noSvg'), 'warning');
       return;
     }
     if (!hasBoundaryBox) {
-      setShapeMessage('请先添加边界框', 'warning');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.noBoundary'), 'warning');
       return;
     }
     if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
-      setShapeMessage('当前环境不支持 SVG 编辑', 'error');
+      setShapeMessage(t('imageProcessor.errors.svgEditNotSupported'), 'error');
       return;
     }
 
     try {
       autoFillAbortRef.current = false;
       setAutoFilling(true);
-      setShapeMessage('正在自动填充矩形…', 'info');
+      setShapeMessage(t('imageProcessor.shapeTools.autoFill.filling'), 'info');
       setAutoFillProgress({
         progress: 0,
         processedRows: 0,
@@ -244,12 +246,12 @@ export const useShapeTools = ({
       );
 
       if (autoFillAbortRef.current) {
-        setShapeMessage('自动填充已取消', 'info');
+        setShapeMessage(t('imageProcessor.shapeTools.messages.autoFillCancelled'), 'info');
         return;
       }
 
       if (suggestions.length === 0) {
-        setShapeMessage('未找到可用的白色区域，请尝试减小间距或调整扫描步长。', 'warning');
+        setShapeMessage(t('imageProcessor.shapeTools.messages.noWhiteArea'), 'warning');
         return;
       }
 
@@ -295,10 +297,10 @@ export const useShapeTools = ({
 
       const serialized = new XMLSerializer().serializeToString(doc);
       onSvgUpdate(serialized);
-      setShapeMessage(`已自动填充 ${suggestions.length} 个矩形（每个 ≤ 100×50 mm）。`, 'success');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.autoFillSuccess', { count: suggestions.length }), 'success');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setShapeMessage(`自动填充失败：${message}`, 'error');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.autoFillFailed', { message }), 'error');
     } finally {
       setAutoFilling(false);
       setAutoFillProgress(null);
@@ -307,7 +309,7 @@ export const useShapeTools = ({
 
   const handleStopAutoFill = () => {
     autoFillAbortRef.current = true;
-    setShapeMessage('正在停止自动填充…', 'info');
+    setShapeMessage(t('imageProcessor.shapeTools.messages.stoppingAutoFill', { defaultValue: '正在停止自动填充…' }), 'info');
   };
 
   const handleClearShapes = () => {
@@ -331,10 +333,10 @@ export const useShapeTools = ({
 
       const serialized = new XMLSerializer().serializeToString(doc);
       onSvgUpdate(serialized);
-      setShapeMessage('已清空追加图形', 'info');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.shapesCleared'), 'info');
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setShapeMessage(`清空追加图形失败：${message}`, 'error');
+      setShapeMessage(t('imageProcessor.shapeTools.messages.clearShapesFailed', { message }), 'error');
     }
   };
 

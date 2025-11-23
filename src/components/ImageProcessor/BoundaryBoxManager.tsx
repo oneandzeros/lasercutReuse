@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface BoundaryBoxManagerProps {
   hasBoundaryBox: boolean;
@@ -24,12 +25,14 @@ const BoundaryBoxManager: React.FC<BoundaryBoxManagerProps> = ({
   onAddBoundaryBox,
   onClearShapes,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="shape-section">
-      <h5>【管理操作】</h5>
+      <h5>{t('imageProcessor.shapeTools.management.title')}</h5>
       <div className="shape-control-grid">
         <label>
-          边界框宽度 (mm)
+          {t('imageProcessor.shapeTools.management.boundaryWidth')}
           <input
             type="number"
             min={1}
@@ -42,7 +45,7 @@ const BoundaryBoxManager: React.FC<BoundaryBoxManagerProps> = ({
           />
         </label>
         <label>
-          边界框高度 (mm)
+          {t('imageProcessor.shapeTools.management.boundaryHeight')}
           <input
             type="number"
             min={1}
@@ -57,10 +60,10 @@ const BoundaryBoxManager: React.FC<BoundaryBoxManagerProps> = ({
       </div>
       <div className="shape-buttons">
         <button className="btn btn-secondary" onClick={onAddBoundaryBox}>
-          {hasBoundaryBox ? '重新添加边界框' : '添加边界框'}
+          {hasBoundaryBox ? t('imageProcessor.shapeTools.management.reAddBoundary') : t('imageProcessor.shapeTools.management.addBoundary')}
         </button>
         <button className="btn btn-secondary" onClick={onClearShapes}>
-          清空追加图形
+          {t('imageProcessor.shapeTools.management.clearShapes')}
         </button>
       </div>
     </div>

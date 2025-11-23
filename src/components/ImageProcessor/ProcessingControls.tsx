@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Point } from '../../utils/imageProcessor';
 
 interface ProcessingControlsProps {
@@ -45,41 +46,41 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
   onApplyCorners,
   onProcess,
 }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="processing-section">
       <div className="processing-params">
-        <h4>自动校正</h4>
+        <h4>{t('imageProcessor.autoCorrect.title')}</h4>
         <button className="btn btn-primary" onClick={onAutoCorrect} disabled={processing}>
-          {processing ? '处理中…' : '重新自动识别角点'}
+          {processing ? t('common.processing') : t('imageProcessor.autoCorrect.button')}
         </button>
-        <p className="hint">系统会尝试自动识别红色胶带角点并进行透视校正。</p>
+        <p className="hint">{t('imageProcessor.autoCorrect.hint')}</p>
       </div>
 
       <div className="processing-params">
-        <h4>角点校正</h4>
-        <p className="hint">
-          拖动绿色圆点或点击图片添加缺失角点（顺序：左上 → 右上 → 右下 → 左下），以确保透视正确。
-        </p>
+        <h4>{t('imageProcessor.cornerCorrection.title')}</h4>
+        <p className="hint">{t('imageProcessor.cornerCorrection.hint')}</p>
         <div className={`corner-status ${cornersDirty ? 'dirty' : 'clean'}`}>
-          当前状态：{cornersDirty ? '未应用（请点击"应用角点"）' : '已应用'}
+          {t('imageProcessor.cornerCorrection.status.current')}: {cornersDirty ? t('imageProcessor.cornerCorrection.status.dirty') : t('imageProcessor.cornerCorrection.status.clean')}
         </div>
         <button
           className="btn btn-secondary"
           onClick={onApplyCorners}
           disabled={applyingCorners || manualCorners.length < 3}
         >
-          {applyingCorners ? '应用中…' : '应用角点'}
+          {applyingCorners ? t('imageProcessor.cornerCorrection.applying') : t('imageProcessor.cornerCorrection.applyButton')}
         </button>
         {manualCorners.length < 3 && (
-          <small className="hint">至少标记三个角点（建议四个）以完成透视校正。</small>
+          <small className="hint">{t('imageProcessor.cornerCorrection.minCornersHint')}</small>
         )}
       </div>
 
       <div className="processing-params">
-        <h4>实际尺寸（可选）</h4>
-        <p className="hint">906一般为603mm×482mm</p>
+        <h4>{t('imageProcessor.actualSize.title')}</h4>
+        <p className="hint">{t('imageProcessor.actualSize.hint')}</p>
         <label>
-          宽度 (mm)
+          {t('imageProcessor.actualSize.width')}
           <input
             type="number"
             min={0}
@@ -89,7 +90,7 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
           />
         </label>
         <label>
-          高度 (mm)
+          {t('imageProcessor.actualSize.height')}
           <input
             type="number"
             min={0}
@@ -98,22 +99,22 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
             onChange={(e) => onActualHeightChange(Number(e.target.value))}
           />
         </label>
-        <small>用于将 SVG 按真实尺寸缩放。</small>
+        <small>{t('imageProcessor.actualSize.description')}</small>
       </div>
 
       <div className="processing-params">
-        <h4>Potrace 参数</h4>
+        <h4>{t('imageProcessor.potrace.title')}</h4>
         <label className="checkbox">
           <input
             type="checkbox"
             checked={threshold === null}
             onChange={(e) => onThresholdChange(e.target.checked ? null : 128)}
           />
-          自动阈值
+          {t('imageProcessor.potrace.autoThreshold')}
         </label>
         {threshold !== null && (
           <label>
-            阈值 {threshold}
+            {t('imageProcessor.potrace.threshold')} {threshold}
             <input
               type="range"
               min={0}
@@ -124,7 +125,7 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
           </label>
         )}
         <label>
-          忽略杂点 (turdSize): {turdSize}
+          {t('imageProcessor.potrace.turdSize')}: {turdSize}
           <input
             type="range"
             min={0}
@@ -134,7 +135,7 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
           />
         </label>
         <label>
-          平滑容差: {optTolerance.toFixed(2)}
+          {t('imageProcessor.potrace.optTolerance')}: {optTolerance.toFixed(2)}
           <input
             type="range"
             min={0}
@@ -147,7 +148,7 @@ const ProcessingControls: React.FC<ProcessingControlsProps> = ({
       </div>
 
       <button className="btn btn-primary btn-process" onClick={onProcess} disabled={processing}>
-        {processing ? '处理中…' : '生成SVG'}
+        {processing ? t('common.processing') : t('imageProcessor.generateSvg')}
       </button>
     </div>
   );
