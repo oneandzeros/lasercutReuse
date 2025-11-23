@@ -59,7 +59,7 @@ const BoundaryBoxManager: React.FC<BoundaryBoxManagerProps> = ({
         </label>
       </div>
       <div className="shape-buttons">
-        <button className="btn btn-secondary" onClick={onAddBoundaryBox}>
+        <button className="btn btn-primary" onClick={onAddBoundaryBox}>
           {hasBoundaryBox ? t('imageProcessor.shapeTools.management.reAddBoundary') : t('imageProcessor.shapeTools.management.addBoundary')}
         </button>
         <button className="btn btn-secondary" onClick={onClearShapes}>
