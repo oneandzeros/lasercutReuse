@@ -279,9 +279,9 @@ export const useSvgManipulation = ({
       const targetWidthPx = Math.floor(boundaryWidthMm * originalPxPerMmX);
       const targetHeightPx = Math.floor(boundaryHeightMm * originalPxPerMmY);
       
-      // 关键修复：在导出时完全移除 stroke，避免影响尺寸计算
-      boundaryBox.removeAttribute('stroke');
-      boundaryBox.removeAttribute('stroke-width');
+      // 获取边界框的 stroke 信息（用于保留蓝色边框）
+      const currentStroke = boundaryBox.getAttribute('stroke');
+      const currentStrokeWidth = boundaryBox.getAttribute('stroke-width');
       
       // 关键修复：先将边界框移动到 (0, 0)
       boundaryBox.setAttribute('x', '0');
@@ -290,6 +290,17 @@ export const useSvgManipulation = ({
       // 更新边界框的像素尺寸为向下取整后的值（确保是整数）
       boundaryBox.setAttribute('width', String(targetWidthPx));
       boundaryBox.setAttribute('height', String(targetHeightPx));
+      
+      // 确保保留蓝色边框（总是设置，确保可见）
+      boundaryBox.setAttribute('stroke', currentStroke || '#2563eb'); // 蓝色
+      if (!currentStrokeWidth) {
+        const strokeWidthPx = Math.max(1, 2 * Math.min(originalPxPerMmX, originalPxPerMmY));
+        boundaryBox.setAttribute('stroke-width', `${strokeWidthPx}`);
+      }
+      // 确保有 vector-effect 属性，使 stroke 不随缩放变化
+      boundaryBox.setAttribute('vector-effect', 'non-scaling-stroke');
+      // 确保 fill 为 none
+      boundaryBox.setAttribute('fill', 'none');
       
       // 设置 viewBox 为向下取整后的像素尺寸
       const finalViewBoxWidth = targetWidthPx;
@@ -304,18 +315,36 @@ export const useSvgManipulation = ({
       root.setAttribute('height', `${boundaryHeightMm}mm`);
       
       // 调整整个SVG内容，将边界框移动到 (0,0)
-      // 需要将边界框之前的位置偏移应用到父元素或所有子元素
+      // 需要将所有其他元素（路径、矩形等）平移，使它们相对于边界框的位置保持不变
       if (boundaryX !== 0 || boundaryY !== 0) {
-        const boundaryParent = boundaryBox.parentElement;
-        if (boundaryParent && boundaryParent !== root) {
-          const existingTransform = boundaryParent.getAttribute('transform') || '';
-          const translateX = -boundaryX;
-          const translateY = -boundaryY;
-          const newTransform = existingTransform
-            ? `translate(${translateX}, ${translateY}) ${existingTransform}`
-            : `translate(${translateX}, ${translateY})`;
-          boundaryParent.setAttribute('transform', newTransform);
+        const translateX = -boundaryX;
+        const translateY = -boundaryY;
+        
+        // 创建一个包装组，将所有其他元素放在组中，然后对整个组进行平移
+        // 这是最简单可靠的方法
+        const wrapperGroup = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
+        wrapperGroup.setAttribute('transform', `translate(${translateX}, ${translateY})`);
+        
+        // 遍历所有子元素，将除了边界框外的所有元素移动到包装组中
+        const childrenToMove: Element[] = [];
+        for (const child of Array.from(root.children)) {
+          if (child !== boundaryBox) {
+            childrenToMove.push(child);
+          }
         }
+        
+        // 将元素移动到包装组
+        for (const child of childrenToMove) {
+          wrapperGroup.appendChild(child);
+        }
+        
+        // 将包装组添加到根元素
+        // 注意：边界框应该在最后，这样它才能在最上层显示
+        root.appendChild(wrapperGroup);
+        
+        // 确保边界框在最后（最上层），移除并重新添加
+        root.removeChild(boundaryBox);
+        root.appendChild(boundaryBox);
       }
 
       return new XMLSerializer().serializeToString(doc);
