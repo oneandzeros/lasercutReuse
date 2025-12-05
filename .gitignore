@@ -15,3 +15,7 @@ yarn-error.log*
 .ssh/
 npm-cache/
 .npm/
+
+# 诊断工具
+check-stroke-width.html
+diagnose-svg.html

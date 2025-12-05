@@ -69,8 +69,9 @@ export const useBoundaryBox = ({
       const pxPerMmY = svgResult.viewHeight / svgResult.heightMm;
 
       // 边界框尺寸（使用用户输入的尺寸）
-      const boundaryWidthPx = boundaryBoxWidthMm * pxPerMmX;
-      const boundaryHeightPx = boundaryBoxHeightMm * pxPerMmY;
+      // 向下取整，确保转换回毫米时不会超过设定值
+      const boundaryWidthPx = Math.floor(boundaryBoxWidthMm * pxPerMmX);
+      const boundaryHeightPx = Math.floor(boundaryBoxHeightMm * pxPerMmY);
 
       // 计算居中位置
       const centerX = vbX + vbWidth / 2;
@@ -86,10 +87,10 @@ export const useBoundaryBox = ({
 
       const ns = 'http://www.w3.org/2000/svg';
       const element = doc.createElementNS(ns, 'rect');
-      element.setAttribute('x', `${x}`);
-      element.setAttribute('y', `${y}`);
-      element.setAttribute('width', `${boundaryWidthPx}`);
-      element.setAttribute('height', `${boundaryHeightPx}`);
+      element.setAttribute('x', String(Math.round(x)));
+      element.setAttribute('y', String(Math.round(y)));
+      element.setAttribute('width', String(Math.round(boundaryWidthPx)));
+      element.setAttribute('height', String(Math.round(boundaryHeightPx)));
       element.setAttribute('fill', 'none');
       element.setAttribute('stroke', '#2563eb'); // 蓝色
       const strokeWidthPx = Math.max(1, 2 * Math.min(pxPerMmX, pxPerMmY));

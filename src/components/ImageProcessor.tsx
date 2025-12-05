@@ -184,8 +184,18 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   // 确认使用
   const handleConfirm = () => {
     if (!svgResult) return;
+    let svgToExport = svgResult.svg;
+    
+    // 在导出前确保边界框尺寸正确
+    if (boundaryBox.hasBoundaryBox) {
+      svgToExport = svgManipulation.normalizeBoundaryBoxDimensions(svgToExport);
+      // 使用 ensureExactBoundaryBoxDimensions 来确保导出时边界框尺寸精确
+      // 这会设置 SVG 的 width/height 为边界框的精确毫米值，并调整 viewBox
+      svgToExport = svgManipulation.ensureExactBoundaryBoxDimensions(svgToExport);
+    }
+    
     const size = actualWidth > 0 && actualHeight > 0 ? { width: actualWidth, height: actualHeight } : undefined;
-    onSvgGenerated(svgResult.svg, size);
+    onSvgGenerated(svgToExport, size);
   };
 
   // 下载SVG
@@ -196,7 +206,8 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
     // 在导出前确保边界框尺寸正确（但不改变位置，保持与预览一致）
     if (boundaryBox.hasBoundaryBox) {
       svgToDownload = svgManipulation.normalizeBoundaryBoxDimensions(svgToDownload);
-      // 不再调用 scaleSvgToBoundaryBox，保持边界框的原始位置与预览一致
+      // 使用 ensureExactBoundaryBoxDimensions 来确保导出时边界框尺寸精确
+      svgToDownload = svgManipulation.ensureExactBoundaryBoxDimensions(svgToDownload);
     }
 
     // 生成时间戳（月日时分）

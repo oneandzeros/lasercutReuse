@@ -18,6 +18,7 @@ interface UseSvgManipulationReturn {
   previewSvg: string | null;
   normalizeBoundaryBoxDimensions: (svgString: string) => string;
   scaleSvgToBoundaryBox: (svgString: string) => string;
+  ensureExactBoundaryBoxDimensions: (svgString: string) => string;
 }
 
 export const useSvgManipulation = ({
@@ -52,18 +53,20 @@ export const useSvgManipulation = ({
       const boundaryHeightMm = parseFloat(boundaryBox.getAttribute('data-boundary-height-mm') || '400');
 
       // 计算在原始viewBox坐标系中的像素尺寸
+      // 关键：向下取整，确保转换回毫米时不会超过设定值
       const originalPxPerMmX = svgResult.viewWidth / svgResult.widthMm;
       const originalPxPerMmY = svgResult.viewHeight / svgResult.heightMm;
-      const boundaryWidthPxOriginal = boundaryWidthMm * originalPxPerMmX;
-      const boundaryHeightPxOriginal = boundaryHeightMm * originalPxPerMmY;
+      // 向下取整像素尺寸，确保不会因为浮点数精度问题导致尺寸偏大
+      const boundaryWidthPxOriginal = Math.floor(boundaryWidthMm * originalPxPerMmX);
+      const boundaryHeightPxOriginal = Math.floor(boundaryHeightMm * originalPxPerMmY);
 
       // 获取当前边界框位置
       let currentX = parseFloat(boundaryBox.getAttribute('x') || '0');
       let currentY = parseFloat(boundaryBox.getAttribute('y') || '0');
 
-      // 更新边界框的尺寸
-      boundaryBox.setAttribute('width', `${boundaryWidthPxOriginal}`);
-      boundaryBox.setAttribute('height', `${boundaryHeightPxOriginal}`);
+      // 更新边界框的尺寸（确保是整数，避免浮点数精度问题）
+      boundaryBox.setAttribute('width', String(Math.round(boundaryWidthPxOriginal)));
+      boundaryBox.setAttribute('height', String(Math.round(boundaryHeightPxOriginal)));
 
       // 确保边界框在原始viewBox范围内
       const originalBounds = {
@@ -119,46 +122,35 @@ export const useSvgManipulation = ({
       const boundaryBox = root.querySelector('[data-boundary-box="true"]') as SVGRectElement | null;
       if (!boundaryBox) return svgString;
 
-      // 获取边界框的位置和尺寸
-      const boundaryX = parseFloat(boundaryBox.getAttribute('x') || '0');
-      const boundaryY = parseFloat(boundaryBox.getAttribute('y') || '0');
-      const boundaryWidthPx = parseFloat(boundaryBox.getAttribute('width') || '0');
-      const boundaryHeightPx = parseFloat(boundaryBox.getAttribute('height') || '0');
+      // 从边界框的data属性读取物理尺寸（精确的毫米值）
+      const boundaryWidthMm = parseFloat(boundaryBox.getAttribute('data-boundary-width-mm') || '0');
+      const boundaryHeightMm = parseFloat(boundaryBox.getAttribute('data-boundary-height-mm') || '0');
 
-      if (boundaryWidthPx <= 0 || boundaryHeightPx <= 0) return svgString;
+      // 如果data属性中没有尺寸，则从rect属性读取并计算
+      let bboxWidthPx: number;
+      let bboxHeightPx: number;
+      let bboxX: number;
+      let bboxY: number;
 
-      // 使用getBBox获取边界框的实际位置
-      let bboxX = boundaryX;
-      let bboxY = boundaryY;
-      let bboxWidth = boundaryWidthPx;
-      let bboxHeight = boundaryHeightPx;
+      // 计算像素到毫米的转换比例
+      const originalPxPerMmX = svgResult.viewWidth / svgResult.widthMm;
+      const originalPxPerMmY = svgResult.viewHeight / svgResult.heightMm;
+      
+      // 使用设定的毫米值计算像素尺寸（向下取整，确保不会超过）
+      const targetWidthMm = boundaryWidthMm > 0 ? boundaryWidthMm : actualWidth;
+      const targetHeightMm = boundaryHeightMm > 0 ? boundaryHeightMm : actualHeight;
+      
+      // 计算与目标毫米值精确对应的像素尺寸（向下取整，确保不会超过）
+      const targetWidthPx = Math.floor(targetWidthMm * originalPxPerMmX);
+      const targetHeightPx = Math.floor(targetHeightMm * originalPxPerMmY);
+      
+      if (targetWidthPx <= 0 || targetHeightPx <= 0) return svgString;
 
-      try {
-        const tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-        const currentViewBox = root.getAttribute('viewBox') || '';
-        tempSvg.setAttribute('viewBox', currentViewBox);
-        tempSvg.style.position = 'absolute';
-        tempSvg.style.visibility = 'hidden';
-        tempSvg.style.width = '0';
-        tempSvg.style.height = '0';
-        document.body.appendChild(tempSvg);
-
-        const tempRoot = root.cloneNode(true) as SVGSVGElement;
-        tempSvg.appendChild(tempRoot);
-
-        const tempBoundaryBox = tempRoot.querySelector('[data-boundary-box="true"]') as SVGRectElement;
-        if (tempBoundaryBox) {
-          const bbox = tempBoundaryBox.getBBox();
-          bboxX = bbox.x;
-          bboxY = bbox.y;
-          bboxWidth = bbox.width;
-          bboxHeight = bbox.height;
-        }
-
-        document.body.removeChild(tempSvg);
-      } catch (error) {
-        console.warn('[scaleSvgToBoundaryBox] 无法使用getBBox，使用直接属性值', error);
-      }
+      // 获取当前边界框位置
+      bboxX = parseFloat(boundaryBox.getAttribute('x') || '0');
+      bboxY = parseFloat(boundaryBox.getAttribute('y') || '0');
+      bboxWidthPx = targetWidthPx;
+      bboxHeightPx = targetHeightPx;
 
       // 调整整个SVG的transform，使边界框对齐到(0,0)
       const boundaryParent = boundaryBox.parentElement;
@@ -175,12 +167,22 @@ export const useSvgManipulation = ({
         boundaryBox.setAttribute('y', '0');
       }
 
-      // 将viewBox设置为边界框的尺寸
-      root.setAttribute('viewBox', `0 0 ${bboxWidth} ${bboxHeight}`);
-
-      // 设置SVG的物理尺寸为用户输入的值
-      root.setAttribute('width', `${actualWidth}mm`);
-      root.setAttribute('height', `${actualHeight}mm`);
+      // 关键修复：根据向下取整后的像素尺寸，反向计算对应的毫米值
+      // 这个毫米值会略小于设定的毫米值（因为向下取整），确保不会超过设定值
+      const finalWidthMm = targetWidthPx / originalPxPerMmX;
+      const finalHeightMm = targetHeightPx / originalPxPerMmY;
+      
+      // 将viewBox设置为与向下取整后的像素尺寸精确对应
+      root.setAttribute('viewBox', `0 0 ${targetWidthPx} ${targetHeightPx}`);
+      
+      // 设置SVG的物理尺寸：使用反向计算的毫米值（不会超过设定值）
+      // 这样 viewBox 像素值 / width 毫米值 = originalPxPerMm，比例是精确的
+      root.setAttribute('width', `${finalWidthMm}mm`);
+      root.setAttribute('height', `${finalHeightMm}mm`);
+      
+      // 同时更新边界框的像素尺寸为向下取整后的值，确保一致性（确保是整数）
+      boundaryBox.setAttribute('width', String(Math.round(targetWidthPx)));
+      boundaryBox.setAttribute('height', String(Math.round(targetHeightPx)));
 
       return new XMLSerializer().serializeToString(doc);
     } catch (error) {
@@ -237,10 +239,97 @@ export const useSvgManipulation = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [svgResult?.svg, hasBoundaryBox]);
 
+  // 导出时确保边界框尺寸精确（不改变SVG结构，只调整尺寸）
+  const ensureExactBoundaryBoxDimensions = (svgString: string): string => {
+    if (typeof DOMParser === 'undefined' || typeof XMLSerializer === 'undefined') {
+      return svgString;
+    }
+    if (!svgResult) return svgString;
+
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(svgString, 'image/svg+xml');
+      const root = doc.documentElement as SVGSVGElement | null;
+      if (!root || root.tagName.toLowerCase() !== 'svg') {
+        return svgString;
+      }
+
+      const boundaryBox = root.querySelector('[data-boundary-box="true"]') as SVGRectElement | null;
+      if (!boundaryBox) return svgString;
+
+      // 从边界框的data属性读取物理尺寸（精确的毫米值）
+      const boundaryWidthMm = parseFloat(boundaryBox.getAttribute('data-boundary-width-mm') || '0');
+      const boundaryHeightMm = parseFloat(boundaryBox.getAttribute('data-boundary-height-mm') || '0');
+
+      if (boundaryWidthMm <= 0 || boundaryHeightMm <= 0) return svgString;
+
+      // 获取当前viewBox
+      const bounds = parseSvgViewBox(root);
+      if (!bounds) return svgString;
+
+      // 计算像素到毫米的转换比例
+      const originalPxPerMmX = svgResult.viewWidth / svgResult.widthMm;
+      const originalPxPerMmY = svgResult.viewHeight / svgResult.heightMm;
+
+      // 获取边界框在原始viewBox中的位置
+      const boundaryX = parseFloat(boundaryBox.getAttribute('x') || '0');
+      const boundaryY = parseFloat(boundaryBox.getAttribute('y') || '0');
+      
+      // 计算与设定毫米值精确对应的像素尺寸（向下取整，确保不会超过）
+      const targetWidthPx = Math.floor(boundaryWidthMm * originalPxPerMmX);
+      const targetHeightPx = Math.floor(boundaryHeightMm * originalPxPerMmY);
+      
+      // 关键修复：在导出时完全移除 stroke，避免影响尺寸计算
+      boundaryBox.removeAttribute('stroke');
+      boundaryBox.removeAttribute('stroke-width');
+      
+      // 关键修复：先将边界框移动到 (0, 0)
+      boundaryBox.setAttribute('x', '0');
+      boundaryBox.setAttribute('y', '0');
+      
+      // 更新边界框的像素尺寸为向下取整后的值（确保是整数）
+      boundaryBox.setAttribute('width', String(targetWidthPx));
+      boundaryBox.setAttribute('height', String(targetHeightPx));
+      
+      // 设置 viewBox 为向下取整后的像素尺寸
+      const finalViewBoxWidth = targetWidthPx;
+      const finalViewBoxHeight = targetHeightPx;
+      
+      // 关键修复：直接使用设定的毫米值，确保比例精确匹配
+      // 设置viewBox为边界框的像素尺寸（从 (0,0) 开始）
+      // 设置 width/height 为设定的精确毫米值
+      // 这样 viewBox 像素尺寸 / width 毫米值 = 精确的比例
+      root.setAttribute('viewBox', `0 0 ${finalViewBoxWidth} ${finalViewBoxHeight}`);
+      root.setAttribute('width', `${boundaryWidthMm}mm`);
+      root.setAttribute('height', `${boundaryHeightMm}mm`);
+      
+      // 调整整个SVG内容，将边界框移动到 (0,0)
+      // 需要将边界框之前的位置偏移应用到父元素或所有子元素
+      if (boundaryX !== 0 || boundaryY !== 0) {
+        const boundaryParent = boundaryBox.parentElement;
+        if (boundaryParent && boundaryParent !== root) {
+          const existingTransform = boundaryParent.getAttribute('transform') || '';
+          const translateX = -boundaryX;
+          const translateY = -boundaryY;
+          const newTransform = existingTransform
+            ? `translate(${translateX}, ${translateY}) ${existingTransform}`
+            : `translate(${translateX}, ${translateY})`;
+          boundaryParent.setAttribute('transform', newTransform);
+        }
+      }
+
+      return new XMLSerializer().serializeToString(doc);
+    } catch (error) {
+      console.warn('[ensureExactBoundaryBoxDimensions] 确保边界框尺寸精确失败', error);
+      return svgString;
+    }
+  };
+
   return {
     previewSvg,
     normalizeBoundaryBoxDimensions,
     scaleSvgToBoundaryBox,
+    ensureExactBoundaryBoxDimensions,
   };
 };
 
