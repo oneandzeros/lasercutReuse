@@ -1,6 +1,6 @@
 {
   "name": "faboginger",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "FaboGinger - 激光切割余料再利用排版工具",
   "main": "dist/main.js",
   "scripts": {
@@ -35,6 +35,8 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.9.1",
     "electron-icon-maker": "^0.0.5",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
     "wait-on": "^7.2.0"

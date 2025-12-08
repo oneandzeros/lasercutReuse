@@ -13,8 +13,9 @@ import {
 } from '../utils/imageProcessor';
 import { useCornerEditing } from '../hooks/useCornerEditing';
 import { useBoundaryBox } from '../hooks/useBoundaryBox';
-import { useShapeTools } from '../hooks/useShapeTools';
+import { useShapeTools, DEFAULT_SHAPE_STATE } from '../hooks/useShapeTools';
 import { useSvgManipulation } from '../hooks/useSvgManipulation';
+import { loadCornerData, saveCornerData } from '../utils/cornerDataStorage';
 import CornerEditor from './ImageProcessor/CornerEditor';
 import SvgPreview from './ImageProcessor/SvgPreview';
 import ShapeTools from './ImageProcessor/ShapeTools';
@@ -90,14 +91,98 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   });
 
   // 图片加载处理
-  const handleImageLoaded = () => {
+  const handleImageLoaded = async () => {
     if (!imageRef.current) return;
+    const currentWidth = imageRef.current.naturalWidth;
+    const currentHeight = imageRef.current.naturalHeight;
+    
     setImageSize({
-      width: imageRef.current.naturalWidth,
-      height: imageRef.current.naturalHeight,
+      width: currentWidth,
+      height: currentHeight,
     });
     setIsImageReady(true);
+
+    // 检查是否有保存的数据
+    const savedData = loadCornerData();
+    if (savedData) {
+      // 检查图片尺寸是否匹配
+      if (
+        savedData.originalWidth === currentWidth &&
+        savedData.originalHeight === currentHeight
+      ) {
+        // 尺寸匹配，自动应用保存的数据
+        setActualWidth(savedData.widthMm);
+        setActualHeight(savedData.heightMm);
+        cornerEditing.setManualCorners(savedData.corners);
+        cornerEditing.setCornersDirty(false);
+        
+        // 应用保存的形状参数
+        if (savedData.shapeState) {
+          shapeTools.setShapeState(savedData.shapeState);
+        } else {
+          // 如果没有保存的形状参数，使用默认值
+          shapeTools.setShapeState(DEFAULT_SHAPE_STATE);
+        }
+        
+        // 应用保存的边界框尺寸
+        if (savedData.boundaryBoxWidthMm !== undefined) {
+          boundaryBox.setBoundaryBoxWidthMm(savedData.boundaryBoxWidthMm);
+        }
+        if (savedData.boundaryBoxHeightMm !== undefined) {
+          boundaryBox.setBoundaryBoxHeightMm(savedData.boundaryBoxHeightMm);
+        }
+        
+        // 自动应用角点
+        try {
+          await cornerEditing.handleApplyCorners();
+        } catch (err) {
+          console.warn('[ImageProcessor] 自动应用保存的角点失败', err);
+        }
+      } else {
+        // 尺寸不匹配，使用系统默认数据
+        setActualWidth(DEFAULT_WIDTH_MM);
+        setActualHeight(DEFAULT_HEIGHT_MM);
+        shapeTools.setShapeState(DEFAULT_SHAPE_STATE);
+        boundaryBox.setBoundaryBoxWidthMm(600);
+        boundaryBox.setBoundaryBoxHeightMm(400);
+      }
+    } else {
+      // 没有保存的数据，使用系统默认数据
+      setActualWidth(DEFAULT_WIDTH_MM);
+      setActualHeight(DEFAULT_HEIGHT_MM);
+      shapeTools.setShapeState(DEFAULT_SHAPE_STATE);
+      boundaryBox.setBoundaryBoxWidthMm(600);
+      boundaryBox.setBoundaryBoxHeightMm(400);
+    }
   };
+
+  // 监听 shapeState 和边界框尺寸变化，实时保存到 localStorage
+  useEffect(() => {
+    // 只有在图片已加载的情况下才保存
+    if (!isImageReady || !imageRef.current) return;
+    
+    const currentWidth = imageRef.current.naturalWidth;
+    const currentHeight = imageRef.current.naturalHeight;
+    
+    // 读取当前保存的数据
+    const savedData = loadCornerData();
+    
+    // 如果保存的数据存在且图片尺寸匹配，更新 shapeState 和边界框尺寸字段
+    if (
+      savedData &&
+      savedData.originalWidth === currentWidth &&
+      savedData.originalHeight === currentHeight
+    ) {
+      saveCornerData({
+        ...savedData,
+        shapeState: shapeTools.shapeState,
+        boundaryBoxWidthMm: boundaryBox.boundaryBoxWidthMm,
+        boundaryBoxHeightMm: boundaryBox.boundaryBoxHeightMm,
+      });
+    }
+    // 如果没有保存的数据或尺寸不匹配，不在这里创建（等到应用角点后再创建完整数据）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shapeTools.shapeState, boundaryBox.boundaryBoxWidthMm, boundaryBox.boundaryBoxHeightMm, isImageReady]);
 
   // 重置状态（当图片数据变化时）
   useEffect(() => {
@@ -148,6 +233,21 @@ const ImageProcessor: React.FC<ImageProcessorProps> = ({ imageData, onSvgGenerat
   const handleApplyCorners = async () => {
     try {
       await cornerEditing.handleApplyCorners();
+      // 应用角点后，更新保存的数据以包含当前的 shapeState 和边界框尺寸
+      // 因为 cornerEditing.handleApplyCorners() 已经保存了角点数据，这里只需要更新 shapeState 和边界框尺寸
+      if (imageRef.current && isImageReady) {
+        const savedData = loadCornerData();
+        if (savedData && 
+            savedData.originalWidth === imageRef.current.naturalWidth &&
+            savedData.originalHeight === imageRef.current.naturalHeight) {
+          saveCornerData({
+            ...savedData,
+            shapeState: shapeTools.shapeState,
+            boundaryBoxWidthMm: boundaryBox.boundaryBoxWidthMm,
+            boundaryBoxHeightMm: boundaryBox.boundaryBoxHeightMm,
+          });
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);

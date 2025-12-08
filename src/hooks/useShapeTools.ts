@@ -92,7 +92,7 @@ function mergeRectangleOutlines(rects: Array<{ x: number; y: number; w: number; 
 
 export type ShapeMessageTone = 'info' | 'success' | 'warning' | 'error';
 
-interface ShapeState {
+export interface ShapeState {
   padding: number;
   cornerRadius: number;
   strokeWidth: number;
@@ -126,13 +126,13 @@ interface UseShapeToolsReturn {
   resetShapeState: () => void;
 }
 
-const DEFAULT_SHAPE_STATE: ShapeState = {
+export const DEFAULT_SHAPE_STATE: ShapeState = {
   padding: 2,
   cornerRadius: 2,
   strokeWidth: 0.1,
   strokeColor: '#ff4d4f',
   gap: 0,
-  step: 2.0,
+  step: 3.0,
   minRectWidth: 30,
   minRectHeight: 20,
 };

@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Point, AutoCorrectResult, generateCorrectedImage, normalizeCorners } from '../utils/imageProcessor';
 import { toImagePoint, clampToImage } from '../utils/coordinateUtils';
+import { saveCornerData } from '../utils/cornerDataStorage';
 
 interface UseCornerEditingProps {
   imageData: string;
@@ -113,6 +114,17 @@ export const useCornerEditing = ({
       setManualCorners(result.corners);
       onCorrectedImageChange(result.dataUrl);
       setCornersDirty(false);
+      
+      // 保存角点数据和实际尺寸值到 localStorage
+      if (imageRef.current) {
+        saveCornerData({
+          corners: result.corners,
+          widthMm: actualWidth,
+          heightMm: actualHeight,
+          originalWidth: imageRef.current.naturalWidth,
+          originalHeight: imageRef.current.naturalHeight,
+        });
+      }
       
       onAutoCorrectUpdate(
         autoCorrect
