@@ -14,6 +14,11 @@
     "build:win:dir": "npm run build && electron-builder --win --dir",
     "build:win:portable": "npm run build && electron-builder --win portable",
     "build:win:all": "npm run build && electron-builder --win --x64 --ia32",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:mac:dmg": "npm run build && electron-builder --mac dmg",
+    "build:mac:zip": "npm run build && electron-builder --mac zip",
+    "build:mac:dir": "npm run build && electron-builder --mac --dir",
+    "icon:mac": "node scripts/convert-icon-mac.js",
     "preview": "vite preview"
   },
   "keywords": [
